@@ -96,4 +96,14 @@ public enum Copy {
     public static let logByHand = "Not now, I'll log by hand"
     public static let allowNotifs = "Allow notifications"
     public static let notNow = "Not now"
+
+    // Share (no SPEC text; user-initiated system sheet, on-device only).
+    // Proposed, needs product review.
+    public static let shareProgress = "Share progress"
+    public static let playingFor = "Playing for"
+    public static let viaFill = "via fill."
+    public static let shareCaption = "Look at my progress!"
+    /// [GAP] No App Store URL yet — paste the real link; the shared message
+    /// omits the link until this parses as a URL.
+    public static let appStoreLink = ""
 }

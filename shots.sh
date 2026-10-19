@@ -11,8 +11,8 @@ xcodebuild -project Fill.xcodeproj -scheme Fill \
 APP=$(ls -d ~/Library/Developer/Xcode/DerivedData/Fill-*/Build/Products/Debug-iphonesimulator/Fill.app | head -1)
 xcrun simctl install "$UDID" "$APP"
 for s in welcome create overview challenge challenge-empty challenge-one challenge-half challenge-done challenge-broken challenge-claimed rescue celebration daywon logtoday; do
-  xcrun simctl terminate "$UDID" com.fill.app 2>/dev/null || true
-  xcrun simctl launch "$UDID" com.fill.app -FillShot "$s" > /dev/null
+  xcrun simctl terminate "$UDID" app.fill.do 2>/dev/null || true
+  xcrun simctl launch "$UDID" app.fill.do -FillShot "$s" > /dev/null
   sleep 2
   xcrun simctl io "$UDID" screenshot "$OUT/$s.png"
   echo "shot $s"

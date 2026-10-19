@@ -11,10 +11,14 @@ public struct ChallengePageView: View {
     var snapshot: Snapshot
     var dayStates: [DayState] = [] // parallel to window, oldest-first
     var manualMode: Bool = false
+    /// Offscreen snapshots render with this false so their .task never
+    /// re-renders (would recurse forever).
+    var shareEnabled: Bool = true
     @Environment(AppState.self) private var app
     @Environment(\.modelContext) private var context
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var bandPulse = true
+    @State private var shareImage: UIImage?
 
     public enum DayState: Equatable { case won(manual: Bool), missed, today(ratio: Double), future }
 
@@ -96,7 +100,37 @@ public struct ChallengePageView: View {
             Text(dayText()).font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(FillColor.text3)
                 .accessibilityLabel(dayText())
+            if let img = shareImage {
+                ShareLink(item: ShareImage(image: img),
+                          message: Text(shareMessage()),
+                          preview: SharePreview(challenge.name, image: Image(uiImage: img))) {
+                    Image(systemName: "square.and.arrow.up")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(FillColor.text3)
+                        .frame(width: 44, height: 44)
+                }
+                .accessibilityLabel(Copy.shareProgress)
+            }
         }.padding(.horizontal, 20)
+        .task(id: shareVersion) {
+            guard shareEnabled else { return }
+            shareImage = ShareContent.renderImage(
+                challenge: challenge, snapshot: snapshot,
+                dayStates: dayStates, manualMode: manualMode)
+        }
+    }
+    /// Re-render the card whenever visible progress changes.
+    private var shareVersion: String {
+        "\(snapshot.wins)-\(snapshot.todayValue)-\(snapshot.done)-\(challenge.claimed)-\(snapshot.moneyEarned)-\(snapshot.todayWon)-\(challenge.colorToken)"
+    }
+    /// Caption + progress + link (link only once Copy.appStoreLink is real).
+    private func shareMessage() -> String {
+        var m = "\(Copy.shareCaption)\n\(challenge.name) — \(pillText())\n\(heroNumber()) \(heroUnit()). \(heroLine())\n\(Copy.playingFor) \(maxRewardText()). \(Copy.viaFill)"
+        if let url = URL(string: Copy.appStoreLink),
+           url.scheme == "http" || url.scheme == "https" {
+            m += "\n\(url.absoluteString)"
+        }
+        return m
     }
     private func pillText() -> String {
         if snapshot.outOfReach { return Copy.outOfReach }

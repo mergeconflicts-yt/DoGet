@@ -3,7 +3,7 @@ import SwiftData
 import BackgroundTasks
 import OSLog
 
-private let log = Logger(subsystem: "com.fill.app", category: "app")
+private let log = Logger(subsystem: "app.fill.do", category: "app")
 
 @main
 struct FillApp: App {
@@ -33,7 +33,7 @@ struct FillApp: App {
 
     init() {
         // Background app refresh: refetch Health history when iOS wakes us (H03).
-        BGTaskScheduler.shared.register(forTaskWithIdentifier: "com.fill.app.refresh", using: nil) { task in
+        BGTaskScheduler.shared.register(forTaskWithIdentifier: "app.fill.do.refresh", using: nil) { task in
             guard let refresh = task as? BGAppRefreshTask else { return }
             refresh.expirationHandler = { refresh.setTaskCompleted(success: false) }
             Task {
@@ -47,7 +47,7 @@ struct FillApp: App {
     }
 
     static func scheduleRefresh() {
-        let req = BGAppRefreshTaskRequest(identifier: "com.fill.app.refresh")
+        let req = BGAppRefreshTaskRequest(identifier: "app.fill.do.refresh")
         req.earliestBeginDate = Date(timeIntervalSinceNow: 60 * 60)
         try? BGTaskScheduler.shared.submit(req)
     }
