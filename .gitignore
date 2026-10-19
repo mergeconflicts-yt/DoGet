@@ -1,0 +1,65 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+
+# Xcode — build output
+build/
+DerivedData/
+
+# Xcode — per-user state (shared schemes in xcshareddata/ are kept)
+xcuserdata/
+*.xcuserstate
+*.xccheckout
+*.moved-aside
+*.xcscmblueprint
+*.xcbkptlist
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Swift Package Manager (generated Xcode state; keep Package.swift + sources)
+.build/
+.swiftpm/xcode/
+
+# CocoaPods (not currently used)
+Pods/
+
+# Carthage (not currently used)
+Carthage/Build/
+
+# fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/**/*.png
+fastlane/test_output
+
+# Local reference mockups (31 PNGs, ~326MB) — visual source of truth per TASK.md,
+# kept locally only, never committed.
+design-mockups/
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Agent working state (local-only)
+.commandcode/
+
+# Test / coverage artifacts
+*.xcresult
+*.lcov
+.coverage
