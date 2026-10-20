@@ -51,11 +51,10 @@ public struct OnboardingView: View {
         return GeometryReader { geo in
             ZStack(alignment: .bottom) {
                 Color.white.ignoresSafeArea()
-                // Color rises from the bottom to ~60% of the screen, not full screen.
-                FillColor.color(for: e.color)
+                // Gel rises from the bottom to ~60% of the screen, not full screen.
+                GelFill(color: FillColor.color(for: e.color), animated: !reduceMotion)
                     .frame(height: geo.size.height * welcomeFill)
                     .frame(maxWidth: .infinity, alignment: .bottom)
-                    .animation(.easeInOut(duration: 0.6), value: e.color)
                     .ignoresSafeArea(edges: .bottom)
                 VStack(alignment: .leading, spacing: 12) {
                     Text("fill.").font(.system(size: 30, weight: .black))
@@ -64,8 +63,13 @@ public struct OnboardingView: View {
                     Text(Copy.dealLine).font(.system(size: 15, weight: .medium))
                     Spacer()
                     Text("YOUR GOAL → YOUR REWARD").font(FillFont.mono(11)).foregroundStyle(.white.opacity(0.8))
-                    Text(e.big).font(.system(size: 72, weight: .black)).foregroundStyle(.white)
-                    Text("\(e.small)\n→ \(e.reward)").font(.system(size: 22, weight: .bold)).foregroundStyle(.white)
+                    HStack(alignment: .lastTextBaseline, spacing: 10) {
+                        Text(e.big).font(.system(size: 72, weight: .black)).foregroundStyle(.white)
+                            .lineLimit(1).minimumScaleFactor(0.7)
+                        Text(e.small).font(.system(size: 22, weight: .bold)).foregroundStyle(.white)
+                            .lineLimit(1).minimumScaleFactor(0.7)
+                    }
+                    Text("→ \(e.reward)").font(.system(size: 22, weight: .bold)).foregroundStyle(.white)
                     Button(Copy.getStarted) { page = 1 }
                         .font(.system(size: 17, weight: .bold))
                         .foregroundStyle(FillColor.color(for: e.color))
@@ -74,7 +78,9 @@ public struct OnboardingView: View {
                         .accessibilityLabel(Copy.getStarted)
                     HStack(spacing: 8) {
                         chip(Copy.noSignup); chip(Copy.noAccount); chip(Copy.noServer)
-                    }.padding(.bottom, 24)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.bottom, 24)
                 }
                 .foregroundStyle(.black)
                 .padding(24)

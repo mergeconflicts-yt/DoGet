@@ -119,15 +119,20 @@ public struct OverviewBand: View {
             ZStack(alignment: .leading) {
                 RoundedRectangle(cornerRadius: 24).fill(FillColor.tint(challenge.colorToken))
                 GeometryReader { g in
+                    // Corners always match the box (24 everywhere). A visible
+                    // fill is never narrower than the corner diameter: below
+                    // 48pt the corners collapse into each other and stop
+                    // looking like the box.
+                    let baseW = base <= 0 ? 0 : max(g.size.width * base, 48)
+                    let layerW = g.size.width * layer
                     HStack(spacing: 0) {
                         FillColor.color(for: challenge.colorToken)
-                            .frame(width: g.size.width * base)
-                        // A sub-6pt today sliver reads as a stray edge line
-                        // (e.g. 0-win bands), so hide it instead of rendering
-                        // an artifact.
-                        if g.size.width * layer >= 6 {
+                            .frame(width: baseW)
+                        // A tiny today sliver reads as a stray edge line, so
+                        // hide it instead of rendering an artifact.
+                        if layerW >= 6 && baseW + layerW >= 24 {
                             FillColor.color(for: challenge.colorToken).opacity(0.4)
-                                .frame(width: g.size.width * layer)
+                                .frame(width: layerW)
                         }
                     }
                     .clipShape(RoundedRectangle(cornerRadius: 24))
@@ -138,11 +143,12 @@ public struct OverviewBand: View {
                     // layer), visibility limited to the fill by a mask.
                     // (Width-constraining the copy re-wraps the text, which
                     // is what overlapped.)
+                    let baseW = base <= 0 ? 0 : max(g.size.width * base, 48)
                     bandText(widthFill: base, dark: false)
                         .frame(width: g.size.width, height: g.size.height)
                         .mask(alignment: .leading) {
                             Rectangle()
-                                .frame(width: g.size.width * base)
+                                .frame(width: baseW)
                         }
                 }
                 .allowsHitTesting(false)

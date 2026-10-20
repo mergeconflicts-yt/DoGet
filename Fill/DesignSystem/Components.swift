@@ -37,7 +37,6 @@ public struct BottomBar: View {
                 .foregroundStyle(.white)
                 .padding(.horizontal, 14).padding(.vertical, 12)
                 .background(FillColor.ink, in: Capsule())
-                .shadow(color: .black.opacity(0.18), radius: 26, y: 8)
             }
             .accessibilityLabel("Challenges")
             Spacer()
@@ -46,7 +45,6 @@ public struct BottomBar: View {
                     .foregroundStyle(.white)
                     .frame(width: 60, height: 60)
                     .background(FillColor.ink, in: Circle())
-                    .shadow(color: .black.opacity(0.35), radius: 24, y: 10)
             }
             .accessibilityLabel("New challenge")
         }

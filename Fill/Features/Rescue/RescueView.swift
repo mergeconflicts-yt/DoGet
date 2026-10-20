@@ -51,6 +51,7 @@ public struct RescueView: View {
         if let r = record() {
             r.y += snapshot.extendBy; r.outOfReachNotifiedAt = nil
             try? context.save()
+            app.dataVersion += 1
             app.showToast("Extended by \(snapshot.extendBy) day\(snapshot.extendBy == 1 ? "" : "s").")
         }
     }
@@ -59,6 +60,7 @@ public struct RescueView: View {
             r.startKey = DayKey.from(date: Date(), calendar: .current).key
             r.restartCount += 1; r.claimedAt = nil; r.closedAt = nil; r.outOfReachNotifiedAt = nil
             try? context.save()
+            app.dataVersion += 1
             app.showToast("Restarted from today.")
         }
     }
@@ -66,6 +68,7 @@ public struct RescueView: View {
         if let r = record() {
             r.typeRaw = "flex"; r.y = challenge.x + 5
             try? context.save()
+            app.dataVersion += 1
             app.showToast("Switched to Flexible.")
         }
     }
@@ -74,6 +77,7 @@ public struct RescueView: View {
         if let r = record() {
             r.archivedAt = Date()
             try? context.save()
+            app.dataVersion += 1
             app.showToast("Challenge scrapped.")
         }
     }

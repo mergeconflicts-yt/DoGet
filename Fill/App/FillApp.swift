@@ -155,7 +155,10 @@ struct RootView: View {
     }
 
     private func refresh() {
-        Task { await Evaluator.shared.refresh(context: context, app: app, now: app.now) }
+        Task {
+            await Evaluator.shared.refresh(context: context, app: app, now: app.now)
+            app.dataVersion += 1
+        }
     }
 
     private func colorForChallenge(named: String) -> String {

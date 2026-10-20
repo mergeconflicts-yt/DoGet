@@ -51,7 +51,9 @@ public struct ChallengePageView: View {
                     goalLine.padding(.horizontal, 20)
                         .padding(.top, (challenge.type == .once ? 78 : 38) * scale)
                     if showFirstWin {
-                        heroBlock
+                        // Above the fill: always ink-on-white, even when the
+                        // fill runs high (One-time best with no wins yet).
+                        heroBlock(inFill: false)
                             .padding(.horizontal, 20)
                             .padding(.top, 30 * scale)
                         firstWinCard.padding(.top, 22 * scale)
@@ -61,18 +63,25 @@ public struct ChallengePageView: View {
                 // Hero: inside the fill (white) when high, else just above it.
                 // On an empty page it lives above the first-win card instead.
                 if !showFirstWin {
-                    heroBlock
+                    heroBlock(inFill: heroInsideFill)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.horizontal, 20)
                         .padding(.bottom, heroBottom(fh: fh, scale: scale))
                 }
                 if showTodayPill {
-                    todayPill.padding(.bottom, max(0, fb + lh / 2 - 12))
-                        .padding(.trailing, 20)
-                        .frame(maxWidth: .infinity, alignment: .trailing)
-                }
-                if showLogToday {
-                    logTodayButton.padding(.bottom, max(0, fb + lh / 2 - 28))
+                    Group {
+                        if manualMode {
+                            Button(action: openLogToday) {
+                                todayPill(floating: controlsAboveFill)
+                            }
+                            .buttonStyle(.plain)
+                        } else {
+                            todayPill(floating: controlsAboveFill)
+                        }
+                    }
+                    .padding(.bottom, controlsAboveFill ? fh + 8 * scale : max(0, fb + lh / 2 - 12))
+                    .padding(.trailing, 20)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
                 }
                 footer
                     .padding(.horizontal, 20).padding(.bottom, 112 * scale)
@@ -90,7 +99,7 @@ public struct ChallengePageView: View {
         }
     }
 
-    // MARK: header + rule
+// MARK: header + rule
     private var headerRow: some View {
         HStack {
             ActivityPill(metric: challenge.metric.rawValue, text: pillText(),
@@ -214,7 +223,7 @@ public struct ChallengePageView: View {
         return ""
     }
 
-    // MARK: fill + today band
+    // MARK: fill (gel base from the bottom + today band on top)
     private func fillStack(scale: CGFloat, fb: CGFloat, lh: CGFloat) -> some View {
         let c = FillColor.color(for: challenge.colorToken)
         return VStack(spacing: 0) {
@@ -224,36 +233,51 @@ public struct ChallengePageView: View {
                     c.frame(height: 2)
                 }.frame(height: lh)
             }
-            c.frame(height: max(0, fb))
+            GelFill(color: c, animated: !reduceMotion)
+                .frame(height: max(0, fb))
+                .animation(reduceMotion ? nil : .timingCurve(0.3, 0.9, 0.3, 1, duration: 1.1), value: fb)
         }
     }
 
-    // MARK: hero (DESIGN §4: inside the fill when fh ≥ 420, else above it)
+    // MARK: hero (white inside the fill when it fills most of the page,
+    // else ink just above it)
+    // The hero floats just above the fill top; the today pill sits inside
+    // the fill top, so no extra clearance for it.
     private func heroBottom(fh: CGFloat, scale: CGFloat) -> CGFloat {
-        if fh >= 420 * scale { return max(0, fh - 140 * scale) }
-        var b = fh + 16 * scale
-        if showTodayPill { b += 54 * scale }
-        if showLogToday { b += 78 * scale }
-        return b
+        if heroInsideFill { return max(0, fh - 140 * scale) }
+        return fh + 8 * scale
     }
     private var heroInsideFill: Bool {
         let scale: CGFloat = 1
         let fb = 196 + 384 * snapshot.base
         let lh = snapshot.layer > 0 ? max(30, 384 * snapshot.layer) : 0
-        return fb + lh >= 420 * scale
+        // 340, not 420: above ~340 the floating hero no longer fits between
+        // the goal line and the fill top, so it moves inside instead.
+        return fb + lh >= 340 * scale
     }
-    private var heroBlock: some View {
+
+    /// The today pill / Log button ride just above the fill top while the
+    /// hero is inside it (they would collide with it on the band); only
+    /// when there is room below the goal line, else they stay put.
+    private var controlsAboveFill: Bool {
+        guard heroInsideFill else { return false }
+        let scale: CGFloat = 1
+        let fb = 196 + 384 * snapshot.base
+        let lh = snapshot.layer > 0 ? max(30, 384 * snapshot.layer) : 0
+        return fb + lh + 38 * scale <= 522 * scale
+    }
+    private func heroBlock(inFill: Bool) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(alignment: .lastTextBaseline, spacing: 8) {
                 Text(heroNumber()).font(FillFont.hero(heroNumber().count > 4))
                     .monospacedDigit()
-                    .foregroundStyle(heroInsideFill ? .white : FillColor.color(for: challenge.colorToken))
+                    .foregroundStyle(inFill ? .white : FillColor.color(for: challenge.colorToken))
                 Text(heroUnit()).font(FillFont.heroUnit)
-                    .foregroundStyle(heroInsideFill ? .white : FillColor.ink)
+                    .foregroundStyle(inFill ? .white : FillColor.ink)
             }
             .lineLimit(1)
             Text(heroLine()).font(FillFont.remaining)
-                .foregroundStyle(heroInsideFill ? .white : FillColor.ink)
+                .foregroundStyle(inFill ? .white : FillColor.ink)
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(heroNumber()) \(heroUnit()). \(heroLine())")
@@ -306,20 +330,22 @@ public struct ChallengePageView: View {
         }
     }
 
-    // MARK: today pill + log today button (SPEC §7.3 item 9)
+    // MARK: today pill (SPEC §7.3 item 9)
+    // In manual mode the same pill opens Log today ("LOG YOUR PROGRESS").
     private var showTodayPill: Bool {
         challenge.type != .once && !snapshot.done && !snapshot.outOfReach
-            && !snapshot.streakBroken && !manualMode
+            && !snapshot.streakBroken
     }
-    private var todayPill: some View {
+    private func todayPill(floating: Bool) -> some View {
         let text = todayPillText
         return Text(text)
             .font(FillFont.mono(10.5)).foregroundStyle(FillColor.color(for: challenge.colorToken))
             .padding(.horizontal, 12).padding(.vertical, 8)
-            .background(.white, in: Capsule())
+            .background(floating ? FillColor.tint(challenge.colorToken) : .white, in: Capsule())
             .accessibilityLabel(text)
     }
     private var todayPillText: String {
+        if manualMode && !snapshot.todayWon { return Copy.logProgress }
         guard snapshot.todayWon else { return "TODAY · \(remainingToday()) TO GO" }
         if case .won(let manual)? = dayStates.first(where: {
             if case .today = $0 { return true }
@@ -327,28 +353,19 @@ public struct ChallengePageView: View {
         }), manual { return "\(Copy.todayWon) \(Copy.byHand)" }
         return Copy.todayWon
     }
-    private var showLogToday: Bool {
-        manualMode && !snapshot.done && !snapshot.outOfReach && !snapshot.streakBroken && challenge.type != .once
-    }
-    private var logTodayButton: some View {
-        Button("Log today \(Format.metric(snapshot.todayValue, metric: challenge.metric)) / \(Format.metric(challenge.target, metric: challenge.metric))") {
-            app.showingLogToday = LogTodayRequest(metric: challenge.metric,
-                                                  target: challenge.target,
-                                                  colorToken: challenge.colorToken)
-        }
-        .font(.system(size: 17, weight: .bold)).foregroundStyle(.white)
-        .frame(maxWidth: .infinity).frame(height: 56)
-        .background(FillColor.ink, in: RoundedRectangle(cornerRadius: 28))
-        .padding(.horizontal, 20)
-        .accessibilityLabel("Log today")
+    private func openLogToday() {
+        app.showingLogToday = LogTodayRequest(metric: challenge.metric,
+                                              target: challenge.target,
+                                              colorToken: challenge.colorToken)
     }
     private func remainingToday() -> String {
         Notifications.remainingText(challenge: challenge, todayValue: snapshot.todayValue)
     }
 
     // MARK: first-win card (DESIGN §4: top = RT + 34)
+    // One-time challenges never show it: a single attempt has no first win.
     private var showFirstWin: Bool {
-        snapshot.wins == 0 && !snapshot.done && !snapshot.outOfReach && !snapshot.streakBroken
+        challenge.type != .once && snapshot.wins == 0 && !snapshot.done && !snapshot.outOfReach && !snapshot.streakBroken
     }
     private var firstWinCard: some View {
         VStack(alignment: .leading, spacing: 4) {

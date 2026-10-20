@@ -19,6 +19,7 @@ sources = [
     "Fill/App/AppState.swift",
     "Fill/DesignSystem/DesignSystem.swift",
     "Fill/DesignSystem/Components.swift",
+    "Fill/DesignSystem/GelFill.swift",
     "Fill/Domain/Types.swift",
     "Fill/Domain/Engine.swift",
     "Fill/Domain/Derive.swift",
@@ -53,7 +54,7 @@ test_sources = [
     "Fill/Domain/CreateDraft.swift",
     "FillTests/DomainTests.swift",
 ]
-uitest_sources = ["FillUITests/CreateFlowTests.swift"]
+uitest_sources = ["FillUITests/CreateFlowTests.swift", "FillUITests/GelFillTests.swift", "FillUITests/RescueTests.swift"]
 
 def uid(name: str) -> str:
     return hashlib.md5(name.encode()).hexdigest()[:24].upper()

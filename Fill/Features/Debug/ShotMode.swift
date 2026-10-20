@@ -5,9 +5,9 @@ import SwiftData
 // Headless visual verification: launch with `-FillShot <screen>` to render
 // one screen with canned data, then capture via simctl screenshot.
 // Screens: welcome, create, overview, challenge, rescue, celebration,
-// daywon, logtoday, plus challenge scenarios:
+// daywon, logtoday, pager, pager-challenge, plus challenge scenarios:
 // challenge-empty, challenge-one, challenge-half, challenge-done,
-// challenge-broken, challenge-claimed.
+// challenge-broken, challenge-claimed, challenge-once, challenge-manual.
 public enum ShotMode {
     public static var screen: String? {
         let args = CommandLine.arguments
@@ -84,6 +84,8 @@ public enum ShotMode {
     /// empty: 0 wins + today band + first-win card. one: first win.
     /// half: 10 of 20. done: 20 of 20 + trophy footer.
     /// broken: streak with a miss + rescue card. claimed: done + REWARDED.
+    /// once: one-time with a partial best, high fill, no wins yet.
+    /// manual: same data as one, rendered with log-by-hand on.
     @MainActor
     public static func seedScenario(_ kind: String, into context: ModelContext) {
         let repo = Repository(context: context)
@@ -94,6 +96,9 @@ public enum ShotMode {
                      x: 20, y: 30, startOffset: 0, wins: 0, misses: 0, todayValue: 7_842)
         case "one":
             seedFlex(repo, context, today, name: "First win", color: "green",
+                     x: 20, y: 30, startOffset: -2, wins: 1, misses: 1, todayValue: 3_000)
+        case "manual":
+            seedFlex(repo, context, today, name: "Logged by hand", color: "amber",
                      x: 20, y: 30, startOffset: -2, wins: 1, misses: 1, todayValue: 3_000)
         case "half":
             seedFlex(repo, context, today, name: "Halfway there", color: "orange",
@@ -122,6 +127,16 @@ public enum ShotMode {
             seedFlex(repo, context, today, name: "Trophy claimed", color: "pink",
                      x: 20, y: 30, startOffset: -25, wins: 20, misses: 5,
                      todayValue: 0, claimed: true)
+        case "once":
+            // One-time 10K steps, best 6,000 so far: high fill, no wins yet.
+            let start = today.adding(days: -3)
+            let c = Challenge(name: "First 10K", colorToken: "blue", metric: .steps,
+                              target: 10_000, type: .once, x: 1, y: 0, start: start,
+                              reward: Reward(kind: .money, payout: .end, amount: 50_000))
+            repo.insertChallenge(c)
+            repo.upsertMetricDay(metric: "steps", dayKey: start.adding(days: 1).key, value: 6_000)
+            repo.upsertMetricDay(metric: "steps", dayKey: today.key, value: 2_000)
+            try? context.save()
         default: break
         }
     }
@@ -175,15 +190,19 @@ public struct ShotHost: View {
                                       dayStates: p.states, manualMode: false)
                 }
             case "challenge-empty", "challenge-one", "challenge-half",
-                 "challenge-done", "challenge-broken", "challenge-claimed":
+                 "challenge-done", "challenge-broken", "challenge-claimed",
+                 "challenge-once", "challenge-manual":
                 if ready {
                     let name = ["challenge-empty": "Fresh start", "challenge-one": "First win",
                                 "challenge-half": "Halfway there", "challenge-done": "Finished twenty",
                                 "challenge-broken": "Broken streak",
-                                "challenge-claimed": "Trophy claimed"][screen]
+                                "challenge-claimed": "Trophy claimed",
+                                "challenge-once": "First 10K",
+                                "challenge-manual": "Logged by hand"][screen]
                     if let p = pages.first(where: { $0.challenge.name == name }) {
                         ChallengePageView(challenge: p.challenge, snapshot: p.snapshot,
-                                          dayStates: p.states, manualMode: false)
+                                          dayStates: p.states,
+                                          manualMode: screen == "challenge-manual")
                     }
                 }
             case "rescue":
@@ -199,6 +218,13 @@ public struct ShotHost: View {
                            subText: "Savings jar · 87 wins")
             case "logtoday":
                 LogTodayView(metric: .steps, target: 10_000, colorToken: "orange")
+            case "pager":
+                PagerView()
+            case "pager-oor":
+                PagerView()
+            case "pager-challenge":
+                PagerView()
+                    .onAppear { app.selectedPage = 1 }
             default:
                 Text("unknown shot \(screen)")
             }
@@ -208,7 +234,7 @@ public struct ShotHost: View {
         }
         .onAppear {
             guard !ready else { return }
-            if screen == "rescue" {
+            if screen == "rescue" || screen == "pager-oor" {
                 wipe(context)
                 ShotMode.seed(into: context, oor: true)
             } else if screen.hasPrefix("challenge-") {

@@ -76,6 +76,8 @@ public enum Copy {
 
     // Log today
     public static let logToday = "Log today"
+    /// [GAP] Manual-mode today pill text; proposed, needs product review.
+    public static let logProgress = "TODAY · LOG YOUR PROGRESS"
     public static let saved = "Saved."
 
     // Onboarding (SPEC §7.10 + mockups)

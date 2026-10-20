@@ -253,6 +253,7 @@ public struct CelebrationView: View {
             try? context.save()
         }
         claimed = true
+        app.dataVersion += 1
         Task { @MainActor in
             try? await Task.sleep(for: .seconds(0.9)) // SPEC §7.5
             dismiss()

@@ -10,7 +10,7 @@ xcodebuild -project Fill.xcodeproj -scheme Fill \
   -destination 'platform=iOS Simulator,name=iPhone 17' build > /dev/null
 APP=$(ls -d ~/Library/Developer/Xcode/DerivedData/Fill-*/Build/Products/Debug-iphonesimulator/Fill.app | head -1)
 xcrun simctl install "$UDID" "$APP"
-for s in welcome create overview challenge challenge-empty challenge-one challenge-half challenge-done challenge-broken challenge-claimed rescue celebration daywon logtoday; do
+for s in welcome create overview pager pager-challenge challenge challenge-empty challenge-one challenge-half challenge-done challenge-broken challenge-claimed challenge-once challenge-manual rescue celebration daywon logtoday; do
   xcrun simctl terminate "$UDID" app.fill.do 2>/dev/null || true
   xcrun simctl launch "$UDID" app.fill.do -FillShot "$s" > /dev/null
   sleep 2

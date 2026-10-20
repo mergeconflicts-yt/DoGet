@@ -13,31 +13,29 @@ public struct PagerView: View {
 
     public var body: some View {
         @Bindable var app = app
-        GeometryReader { g in
-            ZStack(alignment: .bottom) {
-                TabView(selection: $app.selectedPage) {
-                    OverviewView(
-                        challenges: pages.map(\.challenge),
-                        snapshots: Dictionary(uniqueKeysWithValues: pages.map { ($0.challenge.id, $0.snapshot) }),
-                        onOpen: { app.selectedPage = $0 + 1 }
-                    ).tag(0)
-                    ForEach(Array(pages.enumerated()), id: \.element.id) { i, p in
-                        ChallengePageView(challenge: p.challenge, snapshot: p.snapshot,
-                                          dayStates: p.states, manualMode: p.manualMode)
-                            .tag(i + 1)
-                    }
+        ZStack(alignment: .bottom) {
+            // One continuous backdrop behind everything, edge to edge:
+            // stacking a separate strip here left a hairline seam on
+            // some devices (two sections + a border look).
+            pageBackdrop
+                .ignoresSafeArea()
+            TabView(selection: $app.selectedPage) {
+                OverviewView(
+                    challenges: pages.map(\.challenge),
+                    snapshots: Dictionary(uniqueKeysWithValues: pages.map { ($0.challenge.id, $0.snapshot) }),
+                    onOpen: { app.selectedPage = $0 + 1 }
+                ).tag(0)
+                ForEach(Array(pages.enumerated()), id: \.element.id) { i, p in
+                    ChallengePageView(challenge: p.challenge, snapshot: p.snapshot,
+                                      dayStates: p.states, manualMode: p.manualMode)
+                        .tag(i + 1)
                 }
-                .tabViewStyle(.page(indexDisplayMode: .never))
-                // Pages are clipped to the safe area by the pager, so the
-                // bottom-most colour is bled here, outside the page.
-                bleedStrip
-                    .frame(height: g.safeAreaInsets.bottom)
-                    .padding(.bottom, -g.safeAreaInsets.bottom)
-                BottomBar(pageLabel: app.selectedPage == 0 ? Copy.allChallenges :
-                            "\(Copy.allChallenges) \(app.selectedPage)/\(pages.count)",
-                          onAll: { app.selectedPage = 0 },
-                          onAdd: { app.showingCreate = true })
             }
+            .tabViewStyle(.page(indexDisplayMode: .never))
+            BottomBar(pageLabel: app.selectedPage == 0 ? Copy.allChallenges :
+                        "\(Copy.allChallenges) \(app.selectedPage)/\(pages.count)",
+                      onAll: { app.selectedPage = 0 },
+                      onAdd: { app.showingCreate = true })
         }
         .onAppear {
             pages = PageBuilder.build(context: context, now: app.now)
@@ -47,20 +45,30 @@ public struct PagerView: View {
             pages = PageBuilder.build(context: context, now: app.now)
             selectNewIfNeeded()
         }
+        // Same-count mutations (rescue, claim, log saves, evaluator runs)
+        // and debug clock advances also need fresh snapshots.
+        .onChange(of: app.dataVersion) { _, _ in
+            pages = PageBuilder.build(context: context, now: app.now)
+            selectNewIfNeeded()
+        }
+        .onChange(of: app.debugAdvanceDays) { _, _ in
+            pages = PageBuilder.build(context: context, now: app.now)
+        }
     }
 
-    /// Matches the current page's bottom colour so the home-indicator strip
-    /// continues the page's fill to the physical bottom of the screen.
-    @ViewBuilder private var bleedStrip: some View {
+    /// Full-screen backdrop in the current page's bottom colour, so the
+    /// home-indicator zone is one continuous section with the page's fill.
+    @ViewBuilder private var pageBackdrop: some View {
         if app.selectedPage >= 1, app.selectedPage <= pages.count {
             let p = pages[app.selectedPage - 1]
             let rescue = p.snapshot.outOfReach || p.snapshot.streakBroken
             FillColor.color(for: p.challenge.colorToken)
                 .grayscale(rescue ? 0.7 : 0)
                 .opacity(rescue ? 0.45 : 1)
-                .frame(maxWidth: .infinity)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
-            FillColor.bg.frame(maxWidth: .infinity)
+            FillColor.bg
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 

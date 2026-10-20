@@ -13,6 +13,9 @@ public final class AppState {
     /// C12: after Start, the pager scrolls to the new (last) page.
     public var selectNewChallenge = false
     public var toast: String? = nil
+    /// Bumps on every store mutation so PagerView rebuilds its snapshots.
+    /// (Challenge count alone misses extend/restart/claim/log saves.)
+    public var dataVersion = 0
     public var dayWon: (name: String, amount: String, wins: Int)?
     public var celebrating: UUID? = nil
     public var debugAdvanceDays = 0

@@ -66,7 +66,7 @@ Numbers use tabular figures (`.monospacedDigit()`).
 
 - Page side margin: 20 pt (onboarding 22–24 pt).
 - Radius: pills 99; buttons 28–30 (height 54–60); cards/tiles 18–26; bottom sheets 30 (top corners).
-- Shadows: primary buttons `0 10 24 -10 rgba(0,0,0,.35)`; floating bar `0 8 26 rgba(17,18,22,.18)`.
+- Shadows: primary buttons `0 10 24 -10 rgba(0,0,0,.35)`; floating bar `0 8 26 rgba(17,18,22,.18)`. Bottom-bar buttons are flat (no shadow) so the fill below them reads as one section.
 
 ## 4. Challenge page layout (393 × 852)
 
@@ -102,7 +102,7 @@ Rescue card: left/right 14, bottom 100, white, radius 26, shadow `0 18 40 -12 rg
 
 | Component | Spec |
 | --- | --- |
-| Fill | Rectangle in C from bottom; top edge = animated wave (16 pt tall, period 50 pt, 3.2 s linear loop) hidden when a today band or completed state is on top. Tilt with device motion is optional (±3°). |
+| Fill | Gel in C from bottom, one solid color (matches the pager bleed strip, so the bottom is seamless); top edge = flowing wave (~16 pt tall, two sines), with the striped today band on top while today is in progress. Pressing dents the gel with a jelly bounce and sends ripples along the surface. Tilt with device motion is optional (±3°). |
 | TodayBand | Stripes (see 1.1), 2 pt top border, pulse opacity 1→0.65→1 over 1.8 s. |
 | DayBars | Won: full height C, radius 3. Won by hand: stripes C/55% 3 pt. Missed: 10 pt tall danger. Today: C at 45% over white, height = todayRatio, 2 pt inset top line C. Future: 6 pt tall hairline gray. |
 | GoalLine | 1.5 pt dashed, labels mono 10.5 bold C, 22 pt above the line. |
@@ -134,6 +134,7 @@ Reduce Motion: no loops (wave, pulses, roll auto-advance becomes manual swipe), 
 
 - Day won: `.success`
 - Challenge complete: success + 3 light impacts
+- Gel touch: light `.impact` (at most once per 0.5 s while dragging)
 - Blank locked tap: `.warning`
 - Stepper: `.selection`
 
