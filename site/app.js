@@ -5,7 +5,7 @@ const $ = id => document.getElementById(id);
 const topbar = $('topbar'), themeMeta = $('themeColor');
 const heroSection = $('hero');
 let heroColor = '#FF6B1A';
-const barColors = { health:'#D92D20', try:'#2F5BFF', deal:'#FF2D6F', story:'#FFF6EC', private:'#0D0F14', final:'#FF6B1A' };
+const barColors = { health:'#D92D20', try:'#2F5BFF', deal:'#FF2D6F', story:'#13A866', private:'#0D0F14', final:'#FF6B1A' };
 function syncBar() {
   // sample just below the fixed bar so the color always matches what's underneath
   const probe = document.elementFromPoint(Math.max(0, innerWidth/2), topbar.offsetHeight + 4);
@@ -286,5 +286,4 @@ if (!reduce) setInterval(playHero, 4500);
   }), { threshold: 0.4 }).observe(sec);
 })();
 
-// store button placeholder (App Store link when live)
-$('storeBtn').addEventListener('click', e => { e.preventDefault(); location.hash = '#top'; });
+// (store button is a plain TestFlight link; no placeholder handler)

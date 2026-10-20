@@ -4,7 +4,7 @@
 <dict>
 	<key>BGTaskSchedulerPermittedIdentifiers</key>
 	<array>
-		<string>app.fill.do.refresh</string>
+		<string>com.wonday.rewards.refresh</string>
 	</array>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
@@ -28,12 +28,21 @@
 	<false/>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+	</array>
 	<key>NSHealthShareUsageDescription</key>
 	<string>wonday reads your activity on this iPhone to check your challenges. It never uploads, writes or shares your data.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>wonday only reads your activity to check your challenges. It never writes to Apple Health.</string>
 	<key>NSMotionUsageDescription</key>
 	<string>wonday counts your steps on this iPhone when Apple Health is not connected.</string>
-	<key>UILaunchScreen_Generation</key>
-	<true/>
+	<key>UILaunchScreen</key>
+	<dict>
+		<key>UIColorName</key>
+		<string>AccentColor</string>
+	</dict>
 	<key>UIRequiredDeviceCapabilities</key>
 	<array>
 		<string>healthkit</string>

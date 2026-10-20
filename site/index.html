@@ -2,13 +2,13 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>wonday: Reward yourself for your health goals</title>
 <meta name="description" content="Set a health goal, pick your own reward, and let Apple Health count for you. No sign-up, no account, no server.">
 <meta name="theme-color" content="#FF6B1A" id="themeColor">
 <link rel="icon" href="assets/wonday-favicon.png">
 <link rel="apple-touch-icon" href="assets/wonday-favicon.png">
-<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="styles.css?v=9">
 <!-- Share image: replace assets/wonday-share.png with an absolute https:// URL once the site has a domain. -->
 <!-- Live domain: https://wonday.kranehx.com -->
 <link rel="canonical" href="https://wonday.kranehx.com/">
@@ -41,9 +41,8 @@
   <a class="logo" href="#top" aria-label="wonday home"><img class="brand-icon" src="assets/wonday-icon.png" alt="" width="72" height="72"><img class="brand-logo" src="assets/wonday-wordmark-transparent.png" alt="wonday" width="120" height="45"></a>
   <nav class="links" aria-label="Sections">
     <a href="#health">Apple Health</a>
-    <a href="#try">Try it</a>
     <a href="#rewards">Rewards</a>
-    <a href="#story">Story</a>
+    <a href="#story">Why I built this?</a>
     <a href="#privacy">Privacy</a>
   </nav>
   <a class="getapp" href="#final">Get the app</a>
@@ -61,8 +60,8 @@
         <p class="sub">Set a health goal. Choose your reward. Win the day.</p>
         <p class="promise">We only keep the score. You pay for your rewards.</p>
         <div class="cta-row">
-          <a class="btn light" id="heroBtn" href="#final"><span aria-hidden="true">↓</span> Download for iPhone</a>
-          <a class="textlink" href="#try">Try it here ↓</a>
+          <a class="btn light" id="heroBtn" href="https://testflight.apple.com/join/EzgQEVZX"><svg viewBox="0 0 384 512" width="22" height="22" fill="currentColor" aria-hidden="true"><path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z"/></svg><span class="dl">Download on the App Store<small>Free public beta via TestFlight</small></span></a>
+          <a class="textlink" href="#story">Why I built this? ↓</a>
         </div>
         <p class="chips">✓ No sign-up &nbsp;&nbsp; ✓ No account &nbsp;&nbsp; ✓ No server</p>
       </div>
@@ -248,15 +247,14 @@
       <div class="copy reveal">
         <p class="kicker">Why wonday exists</p>
         <h2>He missed on the very first <span class="daymorph" id="dayMorphTitle" role="img" aria-label="Monday became wonday"><span class="dm-a" aria-hidden="true">Monday.</span><span class="dm-b" aria-hidden="true">w<span class="ring-o-brand"></span>nday.</span></span></h2>
-        <p class="sub"><a href="https://www.linkedin.com/in/paulkranti/">My husband</a> wanted a <span class="prize">DGX Spark</span> worth <span class="prize">₹7,00,000</span>.</p>
-        <p class="sub">Not bought &mdash; earned. Every step toward it would also make him healthier.</p>
-        <ul class="dealchips" aria-label="The challenge: 10,000 steps a day, 10,000 rupees per win, need 70 wins in 90 days">
-          <li><b>10,000</b><span>steps a day</span></li>
-          <li><b>₹10,000</b><span>per win</span></li>
+        <p class="sub"><a href="https://www.linkedin.com/in/paulkranti/">My husband</a> wanted a <span class="prize">₹7,00,000</span> <span class="prize">DGX Spark</span> &mdash; not bought, earned.</p>
+        <ul class="dealchips" aria-label="The challenge: 10,000 steps a day, 10,000 rupees per win, 70 wins in 90 days">
+          <li><b>10k</b><span>steps/day</span></li>
+          <li><b>₹10k</b><span>/win</span></li>
           <li><b>70 wins</b><span>in 90 days</span></li>
         </ul>
-        <p class="sub">He started on a <span class="daymorph" id="dayMorph" role="img" aria-label="Monday became wonday"><span class="dm-a" aria-hidden="true">Monday</span><span class="dm-b" aria-hidden="true">w<span class="ring-o-brand"></span>nday</span></span> and failed on the very first day.</p>
-        <p class="sub">So I built <span class="wordmark" role="img" aria-label="wonday"><span aria-hidden="true">w<span class="ring-o-brand"></span>nday</span></span> &mdash; for what I want for him: win every day.</p>
+        <p class="sub">He started on a <span class="daymorph" id="dayMorph" role="img" aria-label="Monday became wonday"><span class="dm-a" aria-hidden="true">Monday</span><span class="dm-b" aria-hidden="true">w<span class="ring-o-brand"></span>nday</span></span>. Missed on Day 1.</p>
+        <p class="sub">So I built <span class="wordmark" role="img" aria-label="wonday"><span aria-hidden="true">w<span class="ring-o-brand"></span>nday</span></span> to keep his dream in sight, turn every win into progress, and motivate him to keep going.</p>
         <p class="sig">&mdash; <a href="https://www.linkedin.com/in/nehilsrivastava/">Nehil</a>, for <a href="https://www.linkedin.com/in/paulkranti/">my husband</a> <span class="heart" aria-hidden="true">♥</span></p>
       </div>
       <div class="stage reveal storyside">
@@ -278,7 +276,7 @@
       <h2>Reward yourself<br>for moving.</h2>
       <p class="sub">Set the goal. Choose the reward. Win the day.</p>
       <p class="promise">We only keep the score. You pay for your rewards.</p>
-      <a class="btn light final-btn" href="#" id="storeBtn"><span aria-hidden="true">↓</span> Download for iPhone</a>
+      <a class="btn light final-btn" href="https://testflight.apple.com/join/EzgQEVZX" id="storeBtn"><svg viewBox="0 0 384 512" width="22" height="22" fill="currentColor" aria-hidden="true"><path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z"/></svg><span class="dl">Download on the App Store<small>Free public beta via TestFlight</small></span></a>
       <p class="chips">✓ No sign-up &nbsp;&nbsp; ✓ No account &nbsp;&nbsp; ✓ No server</p>
       <footer>
         <img class="brand-lockup" src="assets/wonday-lockup-dark.png" alt="wonday" width="220" height="73" loading="lazy" decoding="async">

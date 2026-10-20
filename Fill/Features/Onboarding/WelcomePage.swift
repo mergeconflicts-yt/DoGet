@@ -65,7 +65,8 @@ struct WelcomePage: View {
                 FloatingOrbs().ignoresSafeArea()
             }
             VStack(spacing: 0) {
-                WondayWordmark(size: 34, color: .white, progress: logo)
+                WondayWordmark(size: 34, color: FillColor.ink, progress: logo,
+                                 ring: (example.color == "orange" || example.color == "pink") ? .white : nil)
                     .padding(.top, 6)
 
                 Spacer(minLength: 10)
@@ -300,7 +301,8 @@ private struct DemoCard: View {
 
     private var stampView: some View {
         HStack(spacing: 4) {
-            WondayWord(size: 22, color: .white)
+            WondayWord(size: 22, color: FillColor.ink,
+                       ring: (example.color == "orange" || example.color == "pink") ? .white : FillColor.orange)
             Text("✓").font(FillFont.scaled(20, weight: .black)).foregroundStyle(.white)
         }
         .padding(.horizontal, 16).padding(.vertical, 10)

@@ -4,10 +4,11 @@ import SwiftUI
 // by the welcome/onboarding demo. One source for every in-app use.
 
 /// The wordmark: lowercase "wonday" where the "o" is a ¾ ring with a pale
-/// quarter, exactly like `brand/wonday-wordmark-transparent.png` (and the
-/// website nav). Letters take `color`; the ring takes `ring` (brand orange on
-/// light surfaces) and falls back to the letter color where a colored
-/// background would swallow orange (welcome, stamps).
+/// quarter, exactly like `brand/wonday-wordmark-transparent.png`.
+/// Brand rule: letters are black (ink), the O is brand orange. Two
+/// exceptions: on an orange background the O alone turns white; on a
+/// black background the letters turn white and the O stays orange.
+/// Pass `color`/`ring` explicitly for those two backgrounds.
 public struct WondayWordmark: View {
     var size: CGFloat
     var color: Color
@@ -28,7 +29,7 @@ public struct WondayWordmark: View {
         HStack(alignment: .center, spacing: size * -0.012) {
             letter("w")
             WondayRing(diameter: size * 0.60, lineWidth: size * 0.122,
-                       color: ring ?? color, progress: progress, track: track)
+                       color: ring ?? FillColor.orange, progress: progress, track: track)
                 .offset(x: size * -0.015, y: size * 0.012)
             letter("nday")
         }
@@ -71,16 +72,17 @@ public struct WondayRing: View {
     public var body: some View {
         ZStack {
             // Pale quarter exactly where the solid arc stops: trim 0.75→1.0
-            // with the same -90° rotation lands on west→north (top-left),
-            // the brand gap. No wrap past 1.0, so no clamping surprises.
+            // with the same -100° rotation lands just left of top (the
+            // brand gap sits slightly west of north). No wrap past 1.0,
+            // so no clamping surprises.
             Circle()
                 .trim(from: 0.75, to: 1.0)
                 .stroke(track ?? color.opacity(trackOpacity), lineWidth: lineWidth)
-                .rotationEffect(.degrees(-90))
+                .rotationEffect(.degrees(-100))
             Circle()
                 .trim(from: 0, to: max(0.001, min(progress, 0.75)))
                 .stroke(color, style: StrokeStyle(lineWidth: lineWidth, lineCap: .butt))
-                .rotationEffect(.degrees(-90))
+                .rotationEffect(.degrees(-100))
         }
         .frame(width: diameter, height: diameter)
         .accessibilityHidden(true)
@@ -227,8 +229,10 @@ public struct CountingMoney: View {
 }
 
 /// Branded "wonday" for use inside sentences and headlines: w + ¾ ring
-/// + nday, matching the website wordmark. `ring` defaults to the letter
-/// color; pass brand orange on light surfaces. One accessibility element.
+/// + nday, matching the website wordmark. Brand rule: black letters,
+/// orange O; on orange backgrounds the O alone turns white; on black
+/// backgrounds the letters turn white and the O stays orange.
+/// One accessibility element.
 public struct WondayWord: View {
     var size: CGFloat
     var color: Color
@@ -242,7 +246,7 @@ public struct WondayWord: View {
         HStack(spacing: 0) {
             Text("w").font(FillFont.scaled(size, weight: weight)).foregroundStyle(color)
             WondayRing(diameter: size * 0.60, lineWidth: max(1.5, size * 0.122),
-                       color: ring ?? color, progress: 0.75, track: track)
+                       color: ring ?? FillColor.orange, progress: 0.75, track: track)
                 .offset(x: size * -0.015, y: size * 0.02)
             Text("nday").font(FillFont.scaled(size, weight: weight)).foregroundStyle(color)
         }

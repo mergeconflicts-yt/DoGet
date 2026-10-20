@@ -6,13 +6,17 @@ ROOT = "/Users/nehilsrivastava/Documents/repos/DoGet"
 PROJ = os.path.join(ROOT, "Fill.xcodeproj")
 os.makedirs(PROJ, exist_ok=True)
 
-# Code signing: set TEAM_ID to your 10-character Apple Team ID to hardcode
-# device signing (else leave empty and pick the team in Xcode on first run).
-TEAM_ID = ""
+# Code signing: 10-character Apple Team ID, baked into the project so a
+# regen never drops device/TestFlight signing back to "pick the team".
+TEAM_ID = "J94VN7TYYC"
+
+# Release versioning: bump BUILD_NUMBER for every TestFlight upload
+# (Apple rejects re-uploads of an existing build number).
+MARKETING_VERSION = "1.0"
+BUILD_NUMBER = "1"
 
 # Bundle identifier: must be globally unique on your development team.
-# com.fill.app is taken — change this one constant if Apple rejects it too.
-BUNDLE_ID = "app.fill.do"
+BUNDLE_ID = "com.wonday.rewards"
 
 sources = [
     "Fill/App/FillApp.swift",
@@ -193,19 +197,19 @@ common_app = ("ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YE
     "ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor; "
     "CLANG_ENABLE_MODULES = YES; CODE_SIGN_STYLE = Automatic; "
     + team_setting +
-    "CURRENT_PROJECT_VERSION = 1; INFOPLIST_FILE = Fill/Resources/Info.plist; "
+    f"CURRENT_PROJECT_VERSION = {BUILD_NUMBER}; INFOPLIST_FILE = Fill/Resources/Info.plist; "
     "CODE_SIGN_ENTITLEMENTS = Fill/Resources/Fill.entitlements; "
     'IPHONEOS_DEPLOYMENT_TARGET = 18.0; LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks"); '
-    f"MARKETING_VERSION = 1.0; PRODUCT_BUNDLE_IDENTIFIER = {BUNDLE_ID}; PRODUCT_NAME = Fill; "
+    f"MARKETING_VERSION = {MARKETING_VERSION}; PRODUCT_BUNDLE_IDENTIFIER = {BUNDLE_ID}; PRODUCT_NAME = Fill; "
     f"SWIFT_VERSION = {swift_ver}; SWIFT_STRICT_CONCURRENCY = complete; SWIFT_EMIT_LOC_STRINGS = YES; "
     'SDKROOT = iphoneos; SUPPORTED_PLATFORMS = "iphoneos iphonesimulator"; '
     "TARGETED_DEVICE_FAMILY = 1; ")
 cfg(cfg_dbg_app, "Debug", common_app + "SWIFT_OPTIMIZATION_LEVEL = -Onone; SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG; ENABLE_TESTABILITY = YES; ")
 cfg(cfg_rel_app, "Release", common_app)
-cfg(cfg_dbg_test, "Debug", f'BUNDLE_LOADER = "$(TEST_HOST)"; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 1; GENERATE_INFOPLIST_FILE = YES; IPHONEOS_DEPLOYMENT_TARGET = 18.0; MARKETING_VERSION = 1.0; PRODUCT_BUNDLE_IDENTIFIER = {BUNDLE_ID}.tests; PRODUCT_NAME = FillTests; SWIFT_VERSION = {swift_ver}; SWIFT_STRICT_CONCURRENCY = complete; SWIFT_OPTIMIZATION_LEVEL = -Onone; SDKROOT = iphoneos; SUPPORTED_PLATFORMS = "iphoneos iphonesimulator"; TARGETED_DEVICE_FAMILY = 1; TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Fill.app/Fill"; ')
-cfg(cfg_rel_test, "Release", f'BUNDLE_LOADER = "$(TEST_HOST)"; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 1; GENERATE_INFOPLIST_FILE = YES; IPHONEOS_DEPLOYMENT_TARGET = 18.0; MARKETING_VERSION = 1.0; PRODUCT_BUNDLE_IDENTIFIER = {BUNDLE_ID}.tests; PRODUCT_NAME = FillTests; SWIFT_VERSION = {swift_ver}; SWIFT_STRICT_CONCURRENCY = complete; SDKROOT = iphoneos; SUPPORTED_PLATFORMS = "iphoneos iphonesimulator"; TARGETED_DEVICE_FAMILY = 1; TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Fill.app/Fill"; ')
-uitest_settings = (f'CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 1; GENERATE_INFOPLIST_FILE = YES; '
-    f'IPHONEOS_DEPLOYMENT_TARGET = 18.0; MARKETING_VERSION = 1.0; PRODUCT_BUNDLE_IDENTIFIER = {BUNDLE_ID}.uitests; '
+cfg(cfg_dbg_test, "Debug", f'BUNDLE_LOADER = "$(TEST_HOST)"; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = {BUILD_NUMBER}; GENERATE_INFOPLIST_FILE = YES; IPHONEOS_DEPLOYMENT_TARGET = 18.0; MARKETING_VERSION = {MARKETING_VERSION}; PRODUCT_BUNDLE_IDENTIFIER = {BUNDLE_ID}.tests; PRODUCT_NAME = FillTests; SWIFT_VERSION = {swift_ver}; SWIFT_STRICT_CONCURRENCY = complete; SWIFT_OPTIMIZATION_LEVEL = -Onone; SDKROOT = iphoneos; SUPPORTED_PLATFORMS = "iphoneos iphonesimulator"; TARGETED_DEVICE_FAMILY = 1; TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Fill.app/Fill"; ')
+cfg(cfg_rel_test, "Release", f'BUNDLE_LOADER = "$(TEST_HOST)"; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = {BUILD_NUMBER}; GENERATE_INFOPLIST_FILE = YES; IPHONEOS_DEPLOYMENT_TARGET = 18.0; MARKETING_VERSION = {MARKETING_VERSION}; PRODUCT_BUNDLE_IDENTIFIER = {BUNDLE_ID}.tests; PRODUCT_NAME = FillTests; SWIFT_VERSION = {swift_ver}; SWIFT_STRICT_CONCURRENCY = complete; SDKROOT = iphoneos; SUPPORTED_PLATFORMS = "iphoneos iphonesimulator"; TARGETED_DEVICE_FAMILY = 1; TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Fill.app/Fill"; ')
+uitest_settings = (f'CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = {BUILD_NUMBER}; GENERATE_INFOPLIST_FILE = YES; '
+    f'IPHONEOS_DEPLOYMENT_TARGET = 18.0; MARKETING_VERSION = {MARKETING_VERSION}; PRODUCT_BUNDLE_IDENTIFIER = {BUNDLE_ID}.uitests; '
     f'PRODUCT_NAME = FillUITests; SWIFT_VERSION = {swift_ver}; SWIFT_STRICT_CONCURRENCY = complete; '
     'SDKROOT = iphoneos; SUPPORTED_PLATFORMS = "iphoneos iphonesimulator"; TARGETED_DEVICE_FAMILY = 1; '
     'TEST_TARGET_NAME = Fill; ')

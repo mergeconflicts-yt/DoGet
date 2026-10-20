@@ -3,7 +3,7 @@ import SwiftData
 import BackgroundTasks
 import OSLog
 
-private let log = Logger(subsystem: "app.fill.do", category: "app")
+private let log = Logger(subsystem: "com.wonday.rewards", category: "app")
 
 @main
 struct FillApp: App {
@@ -31,6 +31,25 @@ struct FillApp: App {
                 configurations: synced, local)
         } catch {
             log.fault("ModelContainer failed: \(error.localizedDescription)")
+        }
+        // A corrupt store must not brick the app on launch: wipe both
+        // stores and recreate once. Data is already unrecoverable here.
+        let fm = FileManager.default
+        for name in ["Fill.store", "FillLocal.store"] {
+            let base = URL.applicationSupportDirectory.appending(path: name)
+            for url in [base,
+                        base.appendingPathExtension("-wal"),
+                        base.appendingPathExtension("-shm")] {
+                try? fm.removeItem(at: url)
+            }
+        }
+        do {
+            return try ModelContainer(
+                for: ChallengeRecord.self, RewardEntry.self, ManualLog.self,
+                MetricDay.self, AppSettings.self, NotificationLog.self,
+                configurations: synced, local)
+        } catch {
+            log.fault("ModelContainer failed after reset: \(error.localizedDescription)")
             fatalError("Storage unavailable: \(error.localizedDescription)")
         }
     }
@@ -41,7 +60,7 @@ struct FillApp: App {
         HealthKitController.shared.registerBackgroundDelivery()
         // Background app refresh: refetch Health and run the same Evaluator
         // when iOS wakes us (H03). The old task only rescheduled itself.
-        BGTaskScheduler.shared.register(forTaskWithIdentifier: "app.fill.do.refresh", using: nil) { task in
+        BGTaskScheduler.shared.register(forTaskWithIdentifier: "com.wonday.rewards.refresh", using: nil) { task in
             guard let refresh = task as? BGAppRefreshTask else { return }
             refresh.expirationHandler = { refresh.setTaskCompleted(success: false) }
             Task { @MainActor in
@@ -55,7 +74,7 @@ struct FillApp: App {
     }
 
     static func scheduleRefresh() {
-        let req = BGAppRefreshTaskRequest(identifier: "app.fill.do.refresh")
+        let req = BGAppRefreshTaskRequest(identifier: "com.wonday.rewards.refresh")
         req.earliestBeginDate = Date(timeIntervalSinceNow: 60 * 60)
         try? BGTaskScheduler.shared.submit(req)
     }
@@ -88,21 +107,15 @@ struct RootView: View {
 
     var body: some View {
         Group {
+            #if DEBUG
             if let shot = shotScreen {
                 ShotHost(screen: shot)
-            } else if !onboardingDone {
-                OnboardingView()
-            } else if records.isEmpty {
-                // Empty state: Overview + the same bottom bar the pager shows.
-                OverviewView(challenges: [], snapshots: [:], onOpen: { _ in })
-                    .overlay(alignment: .bottom) {
-                        BottomBar(pageLabel: Copy.allChallenges,
-                                  onAll: {},
-                                  onAdd: { app.showingCreate = true })
-                    }
             } else {
-                PagerView()
+                mainContent
             }
+            #else
+            mainContent
+            #endif
         }
         .onAppear {
             guard !didLaunch else { return }
@@ -177,6 +190,23 @@ struct RootView: View {
             get: { app.showingDebug }, set: { app.showingDebug = $0 }
         )) { DebugMenuView() }
         #endif
+    }
+
+    @ViewBuilder
+    private var mainContent: some View {
+        if !onboardingDone {
+            OnboardingView()
+        } else if records.isEmpty {
+            // Empty state: Overview + the same bottom bar the pager shows.
+            OverviewView(challenges: [], snapshots: [:], onOpen: { _ in })
+                .overlay(alignment: .bottom) {
+                    BottomBar(pageLabel: Copy.allChallenges,
+                              onAll: {},
+                              onAdd: { app.showingCreate = true })
+                }
+        } else {
+            PagerView()
+        }
     }
 
     private func refresh() {

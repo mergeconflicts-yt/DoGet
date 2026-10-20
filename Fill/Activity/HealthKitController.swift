@@ -4,7 +4,7 @@ import HealthKit
 public extension Notification.Name {
     /// Posted when a HealthKit observer fires (IMPLEMENTATION §5.4).
     /// RootView refreshes the Evaluator on receipt.
-    static let fillHealthUpdate = Notification.Name("app.fill.do.healthUpdate")
+    static let fillHealthUpdate = Notification.Name("com.wonday.rewards.healthUpdate")
 }
 
 // IMPLEMENTATION §5.2–§5.4 — HealthKit access lives here, not in views.
