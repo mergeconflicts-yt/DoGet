@@ -1,0 +1,19 @@
+wonday — App Store listing (ASO)
+=================================
+Use "wonday" (lowercase) everywhere to stand apart from the existing
+"Wonday" Android app. Category: Health & Fitness.
+
+App name (30 chars max)
+  wonday: Reward your goals
+
+Subtitle (30 chars max)
+  Win the day. Get the reward.
+
+Keyword field (100 chars max, comma-separated, no spaces)
+  steps,walking,habit,reward,streak,fitness goals
+
+Notes
+- The site titles/descriptions mirror this wording ("wonday rewards").
+- Privacy Policy URL for App Store Connect: https://wonday.kranehx.com/privacy.html
+  (live at wonday.kranehx.com).
+- Support URL for App Store Connect: https://wonday.kranehx.com/help.html

@@ -100,6 +100,9 @@ public enum Engine {
         let todayWon = todayInWindow && isWin(todayValue)
         if todayWon { wins += 1 }
         let todayRatio = c.target > 0 ? min(todayValue / c.target, 0.999) : 0
+        // One time: today is part of "best so far" (SPEC §6). Callers may pass
+        // a stored best that predates today, so the Engine must include today.
+        let bestSoFar = max(best, todayValue)
 
         // For streak: a miss today also breaks (today is neither win nor miss until
         // won or ended per SPEC — but a past-day miss breaks; today below target
@@ -109,7 +112,7 @@ public enum Engine {
         let done: Bool = {
             switch c.type {
             case .flex, .streak: return wins >= c.x
-            case .once: return best >= c.target
+            case .once: return bestSoFar >= c.target
             case .open:
                 if c.reward.kind == .money, c.reward.payout == .jar {
                     return c.reward.amount * Decimal(wins) >= c.reward.jarTarget
@@ -146,7 +149,7 @@ public enum Engine {
                 base = c.x > 0 ? Double(wins) / Double(c.x) : 0
                 layer = c.x > 0 ? todayRatio / Double(c.x) : 0
             case .once:
-                base = c.target > 0 ? min(best / c.target, 1) : 0
+                base = c.target > 0 ? min(bestSoFar / c.target, 1) : 0
                 layer = 0
             case .open:
                 if c.reward.kind == .money, c.reward.payout == .jar, c.reward.jarTarget > 0 {
@@ -167,7 +170,7 @@ public enum Engine {
             switch c.type {
             case .flex: return c.start.adding(days: c.y - 1)
             case .streak:
-                if broken != nil || done { return done ? nil : nil }
+                if broken != nil || done { return nil }
                 // not broken, not done: today + (need-1), or + need if today won
                 let n = need
                 if todayWon { return today.adding(days: n) }
@@ -215,6 +218,6 @@ public enum Engine {
                         streakBrokenOnDay: broken, done: done,
                         base: base, layer: layer, endDate: endDate,
                         moneyEarned: earned, moneyLeft: left, perWin: perWin,
-                        best: best)
+                        best: bestSoFar)
     }
 }

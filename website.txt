@@ -1,0 +1,72 @@
+Purpose
+A one-page site that sells the app in a few seconds and sends people to the App Store. The two messages that must be clear everywhere: We only keep the score. You pay for your rewards. Also: No sign-up • No account • No server.
+Overall look
+• Same energy as the app: bold full-screen color, very big heavy type, playful motion.
+• The page is 6 full-screen color blocks. Each block has one big line and one live phone that shows the app moving.
+• Text and phone swap sides from block to block (left/right).
+• Soft, see-through circles float slowly in the background of each block.
+• When a block scrolls into view, its text slides up and the phone rises into place.
+• The app name is always lowercase wonday with the ring "o" (same as the app).
+• The top bar (logo, links, "Get the app") stays fixed. It takes the color of the block under it, slightly see-through.
+• Works on phones: blocks stack (text on top, phone below).
+• With Reduce Motion on: no loops, no confetti.
+
+Block 1 - Hero (orange)
+• Line: "Make every day a wonday."
+• *Under it: "Set a health goal. Choose your reward. Win the day." and in bold "We only keep the score. You pay for your rewards."
+• Buttons: "Download for iPhone" (white) and "Try it here " (text link to block 2).
+• Chips: v No sign-up • V No account • V No server.
+• Phone: a real-looking challenge page (pill, name, rule, day bars, big win count).
+• The screen fills with color from the bottom, with a moving wave on top.
+• Day bars turn on one by one, and the win count counts up.
+• At the end a "wonday " stamp lands and a small confetti burst pops.
+• Every ~4.5 seconds it switches to another challenge (steps, rings, sleep, run).
+The whole hero changes color to match.
+• Floating cards next to the phone bob gently: "DAY WON +z10,000" and "REWARD • Trip to Taiwan".
+
+
+Block 2 - Try it (blue)
+• Line: "Walk. Watch it fill."
+• Text: "Hold the button on the phone. At 10,000 steps, the reward is yours." and in bold "We only keep the score. You pay for your rewards."
+• Phone (interactive): "Walk 10,000 steps", a step counter at 0 and a round Hold to walk button with a pulsing ring.
+• While the visitor holds, the phone screen fills with blue and the counter goes up.
+Letting go pauses it.
+• Text turns white as the fill covers it.
+• At 10,000: confetti, a small shake, and a white "REWARD UNLOCKED 710,000" card pops up and counts up.
+• A "Walk again S" link appears to reset.
+
+Block 3 - Your deal (pink)
+• Line: "You choose the reward."
+• Text: "Money, a trip, a treat, or the thing you want. Write the whole deal in one line!" and in bold "You pay for it. We only keep the score."
+• Phone: the "New challenge" screen. The sentence writes itself: "'I [walk 10,000 steps] [on 20 of 30 days] to win [R10,000 for each win]."
+• Each blank starts dashed and pops into a filled pill, one after the other.
+• Then the "Start challenge" button lights up.
+• It loops through other deals (rings → trip to Taiwan, run → running shoes, sleep → spa day, calories → pizza night).
+
+Block 4 - Your pace (green)
+• Line: "Miss a day? That's fine."
+• Text: "Win 20 of 30 days, keep a streak, or fill a savings jar. Pick the rule that fits your life."
+• Phone: a challenge page that cycles through 3 rules:
+• Flexible — some red missed days, and a badge "3 missed • still on track".
+• Streak — all bars in a row, "19 days in a row".
+• Savings jar — money count-up "786,000 of $2,00,000".
+• Each time, the fill rises, the bars turn on, and the number counts up.
+
+Block 5 - Just you (dark)
+• Line: "Just you."
+• Text: "No sign-up. No account. No server. Your goals, rewards and health data stay on your iPhone."
+• Phone: a white screen with an orange lock. The lock snaps shut, then four rows slide in one by one: No sign-up, No account, No server (Never sent to us), Read only (We never write to Apple Health). Loops slowly.
+
+Block 6 - Final (orange)
+• Line (huge, centered): "Make every day a wonday."
+• Text: "Set the goal. Choose the reward. Win the day." + the bold two-line promise.
+• Button: "Download for iPhone" (dark).
+• Chips: No sign-up • No account • No server.
+• Footer: wonday logo, links (Privacy, Back to top), "© 2026 wonday. Made for people who move."
+
+Rules
+• Keep it to these 6 blocks. No feature grids, tickers, testimonials or FAQ lists (they were tried and removed).
+• Every phone must look like the real app, not like an icon or illustration.
+• Do not imply that we pay rewards or handle money.
+• The Download buttons link to the App Store page when it exists.
+• No tracking scripts or cookies (matches the "No server" promise). A static site is enough

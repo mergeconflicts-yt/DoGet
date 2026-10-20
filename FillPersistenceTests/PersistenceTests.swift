@@ -19,6 +19,20 @@ func todayKey(_ cal: Calendar = .current) -> DayKey {
     DayKey.from(date: Date(), calendar: cal)
 }
 
+func date(_ day: DayKey, hour: Int = 12, calendar: Calendar = .current) -> Date {
+    calendar.date(from: DateComponents(year: day.year, month: day.month, day: day.day,
+                                       hour: hour)) ?? Date()
+}
+
+/// Fake Health source: returns a fixed value per day key, or `fallback`.
+struct FakeProvider: MetricValueProviding {
+    var values: [String: Double] = [:]
+    var fallback: Double = 0
+    func value(metric: Metric, day: DayKey, calendar: Calendar) async -> MetricValue {
+        MetricValue(values[day.key] ?? fallback)
+    }
+}
+
 @MainActor
 @Suite("Persistence D01-D11", .serialized)
 struct PersistenceTests {
@@ -123,25 +137,33 @@ struct PersistenceTests {
         #expect(StorePlan.local.contains("MetricDay"))
     }
 
-    @Test func test_D07_backfillMarksFinal() throws {
-        // lastEvaluated 3 days ago → fetch covers gap; past days final.
+    @Test func test_D07_backfillRunsEvaluatorAndMarksFinal() async throws {
+        // lastEvaluated 3 days ago → the real Evaluator fetches 17, 18 and 19,
+        // rewards each past win with its own dayKey, and finalises 17.
         let ctx = ModelContext(try makeContainer())
         let repo = Repository(context: ctx)
-        let today = todayKey()
+        let cal = Calendar.current
+        let today = todayKey(cal)
         let s = repo.settings()
         s.lastEvaluatedKey = today.adding(days: -3).key
         let c = Challenge(name: "B", metric: .steps, target: 10_000, type: .flex,
                           x: 20, y: 30, start: today.adding(days: -10),
                           reward: .moneyEach(amount: 1_000))
         repo.insertChallenge(c)
-        var d = today.adding(days: -2)
-        while d <= today {
-            repo.upsertMetricDay(metric: "steps", dayKey: d.key, value: 10_000)
-            if d == today { break }
-            d = d.adding(days: 1)
-        }
+        let outcome = await EvaluationEngine.run(
+            context: ctx, provider: FakeProvider(fallback: 10_000),
+            now: date(today), calendar: cal)
         let rows = try ctx.fetch(FetchDescriptor<MetricDay>())
-        #expect(rows.count == 3) // 17, 18, 19-equivalent
+        #expect(rows.count == 3)
+        #expect(rows.map(\.dayKey).sorted() ==
+                [today.adding(days: -2).key, today.adding(days: -1).key, today.key].sorted())
+        #expect(rows.first { $0.dayKey == today.adding(days: -2).key }?.isFinal == true)
+        #expect(rows.first { $0.dayKey == today.key }?.isFinal == false)
+        let entries = try ctx.fetch(FetchDescriptor<RewardEntry>())
+        #expect(entries.count == 3)
+        #expect(Set(entries.map(\.dayKey)) ==
+                Set([today.adding(days: -2).key, today.adding(days: -1).key, today.key]))
+        #expect(outcome.wonToday != nil)
     }
 
     @Test func test_D08_dedupeKeepsMaxOldest() throws {
@@ -183,36 +205,135 @@ struct PersistenceTests {
         #expect(money == 5_000)
     }
 
-    @Test func test_D10_itemSaveSumsExactly() throws {
+    @Test func test_D10_itemSaveSumsExactly() async throws {
+        // 70 wins through the real Evaluator: one itemSaving per win, the last
+        // one the remainder, summing to exactly ₹7,00,000.
         let ctx = ModelContext(try makeContainer())
         let repo = Repository(context: ctx)
-        let today = todayKey()
-        let start = today.adding(days: -70)
+        let cal = Calendar.current
+        let today = todayKey(cal)
+        let start = today.adding(days: -69)
         let c = Challenge(name: "DGX", metric: .steps, target: 10_000, type: .flex,
                           x: 70, y: 90, start: start,
                           reward: Reward(kind: .item, category: .item, name: "DGX Spark",
                                          value: 700_000, itemPayout: .save))
         repo.insertChallenge(c)
-        let per = Derive.itemPerWin(value: 700_000, x: 70)
-        for i in 0..<70 {
-            let wins = i + 1
-            let amt = Derive.itemSaved(value: 700_000, x: 70, wins: wins)
-                      - Derive.itemSaved(value: 700_000, x: 70, wins: wins - 1)
-            repo.insertRewardEntry(challengeID: c.id, kind: "itemSaving",
-                                   dayKey: start.adding(days: i).key, amount: amt,
-                                   itemValue: 700_000)
-        }
+        repo.settings().lastEvaluatedKey = today.adding(days: -70).key
+        _ = await EvaluationEngine.run(
+            context: ctx, provider: FakeProvider(fallback: 10_000),
+            now: date(today), calendar: cal)
         let entries = try ctx.fetch(FetchDescriptor<RewardEntry>())
+            .filter { $0.kindRaw == "itemSaving" }
         #expect(entries.count == 70)
-        let amounts = entries.map { $0.amount }
-        #expect(amounts.dropLast().allSatisfy { $0 == per })
-        // Last win saves the remainder; total exactly the value.
-        #expect(amounts.reduce(0, +) == 700_000)
+        #expect(entries.map(\.amount).reduce(0, +) == 700_000)
+        let per = Derive.itemPerWin(value: 700_000, x: 70)
+        #expect(entries.sorted { $0.dayKey < $1.dayKey }.dropLast().allSatisfy { $0.amount == per })
+        // Claim writes one final entry with the item value.
         repo.insertRewardEntry(challengeID: c.id, kind: "final", dayKey: today.key,
                                amount: 0, itemValue: 700_000)
-        let money = try ctx.fetch(FetchDescriptor<RewardEntry>())
-            .filter { $0.kindRaw != "itemSaving" }.map(\.amount).reduce(0, +)
-        #expect(money == 0) // item savings never counted as money
+        let finals = try ctx.fetch(FetchDescriptor<RewardEntry>())
+            .filter { $0.kindRaw == "final" }
+        #expect(finals.count == 1)
+        #expect(finals.first?.amount == 0)
+        #expect(finals.first?.itemValue == 700_000)
+    }
+
+    @Test func test_A25_timeZoneMoveKeepsDays() async throws {
+        var kolkata = Calendar(identifier: .gregorian)
+        kolkata.timeZone = TimeZone(identifier: "Asia/Kolkata")!
+        var utc8 = Calendar(identifier: .gregorian)
+        utc8.timeZone = TimeZone(identifier: "Asia/Shanghai")!
+
+        let ctx = ModelContext(try makeContainer())
+        let repo = Repository(context: ctx)
+        let d15 = DayKey(year: 2026, month: 10, day: 15)
+        let c = Challenge(name: "TZ", metric: .steps, target: 10_000, type: .flex,
+                          x: 20, y: 30, start: d15, reward: .moneyEach(amount: 1_000))
+        repo.insertChallenge(c)
+        var values: [String: Double] = [:]
+        for i in 0..<5 { values[d15.adding(days: i).key] = 10_000 }
+        // 22:00 on 19 Oct in IST.
+        _ = await EvaluationEngine.run(
+            context: ctx, provider: FakeProvider(values: values, fallback: 0),
+            now: date(DayKey(year: 2026, month: 10, day: 19), hour: 22, calendar: kolkata),
+            calendar: kolkata)
+        // 00:30 on 20 Oct after moving to UTC+8.
+        let outcome = await EvaluationEngine.run(
+            context: ctx, provider: FakeProvider(values: values, fallback: 0),
+            now: date(DayKey(year: 2026, month: 10, day: 20), hour: 0, calendar: utc8),
+            calendar: utc8)
+        let rows = try ctx.fetch(FetchDescriptor<MetricDay>())
+        #expect(rows.count == 6) // 15–20, one row each
+        let pages = EvaluationEngine.pages(
+            context: ctx,
+            now: date(DayKey(year: 2026, month: 10, day: 20), hour: 0, calendar: utc8),
+            calendar: utc8)
+        #expect(pages.first?.snapshot.dayIndex == 5)
+        #expect(pages.first?.snapshot.wins == 5)
+        #expect(outcome.wonToday == nil) // 20 Oct has no steps yet
+    }
+
+    @Test func test_A26_yesterdayGraceBeforeThree() async throws {
+        let ctx = ModelContext(try makeContainer())
+        let repo = Repository(context: ctx)
+        let cal = Calendar.current
+        let today = todayKey(cal)
+        let yesterday = today.adding(days: -1)
+        let c = Challenge(name: "Grace", metric: .steps, target: 10_000, type: .flex,
+                          x: 20, y: 30, start: today.adding(days: -5),
+                          reward: .moneyEach(amount: 1_000))
+        repo.insertChallenge(c)
+        repo.upsertMetricDay(metric: "steps", dayKey: yesterday.key, value: 9_000)
+        repo.settings().lastEvaluatedKey = yesterday.key
+        let outcome = await EvaluationEngine.run(
+            context: ctx, provider: FakeProvider(values: [yesterday.key: 10_200]),
+            now: date(today, hour: 1, calendar: cal), calendar: cal)
+        let row = try ctx.fetch(FetchDescriptor<MetricDay>())
+            .first { $0.dayKey == yesterday.key }
+        #expect(row?.value == 10_200)
+        #expect(row?.isFinal == false) // still inside the grace window
+        #expect(outcome.wonPast.contains { $0.day == yesterday && $0.amount == 1_000 })
+    }
+
+    @Test func test_A27_yesterdayFinalAfterThree() async throws {
+        let ctx = ModelContext(try makeContainer())
+        let repo = Repository(context: ctx)
+        let cal = Calendar.current
+        let today = todayKey(cal)
+        let yesterday = today.adding(days: -1)
+        let c = Challenge(name: "Final", metric: .steps, target: 10_000, type: .flex,
+                          x: 20, y: 30, start: today.adding(days: -5),
+                          reward: .moneyEach(amount: 1_000))
+        repo.insertChallenge(c)
+        repo.upsertMetricDay(metric: "steps", dayKey: yesterday.key, value: 9_000)
+        repo.settings().lastEvaluatedKey = yesterday.key
+        _ = await EvaluationEngine.run(
+            context: ctx, provider: FakeProvider(values: [yesterday.key: 12_000]),
+            now: date(today, hour: 4, calendar: cal), calendar: cal)
+        let row = try ctx.fetch(FetchDescriptor<MetricDay>())
+            .first { $0.dayKey == yesterday.key }
+        #expect(row?.value == 9_000) // late sync after 03:00 is ignored
+        #expect(row?.isFinal == true)
+    }
+
+    @Test func test_H03_backgroundWinSurvivesClosedApp() async throws {
+        // The background task runs the same Evaluator; this is the state it
+        // leaves behind for the page after launch.
+        let ctx = ModelContext(try makeContainer())
+        let repo = Repository(context: ctx)
+        let cal = Calendar.current
+        let today = todayKey(cal)
+        let c = Challenge(name: "Closed", metric: .steps, target: 10_000, type: .flex,
+                          x: 20, y: 30, start: today, reward: .moneyEach(amount: 1_000))
+        repo.insertChallenge(c)
+        let outcome = await EvaluationEngine.run(
+            context: ctx, provider: FakeProvider(fallback: 10_000),
+            now: date(today, hour: 20, calendar: cal), calendar: cal)
+        #expect(outcome.wonToday?.amount == 1_000)
+        let pages = EvaluationEngine.pages(
+            context: ctx, now: date(today, hour: 20, calendar: cal), calendar: cal)
+        #expect(pages.first?.snapshot.todayWon == true)
+        #expect(try ctx.fetch(FetchDescriptor<RewardEntry>()).count == 1)
     }
 
     @Test func test_D11_insertPersistsClaimState() throws {

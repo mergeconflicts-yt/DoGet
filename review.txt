@@ -1,0 +1,119 @@
+1. What works
+The core engine numbers pass when run:
+• A01-A03, A05, A07-A10, A14, A15, A19-A23 and A25 (time zone change).
+• en-IN money formatting (71,00,000) and goal-line dates (ENDS 5 NOV).
+Also correct:
+• The DayKey math in UTC.
+• The SwiftData models, which are CloudKit-safe.
+• The store split (Health values only in the local store).
+• RewardEntry idempotency.
+• Read-only HealthKit (no write usage string).
+• No network calls, third-party dependencies or debt language.
+• The Create order lock, facts row, payout filtering and 2-tap scrap.
+2. High
+1. v Steps added later in the day never count, in Engagement.swift:39-68.
+• The Evaluator sets lastEvaluatedKey to today. Every later refresh then starts at tomorrow, so Health is never reread that day.
+• Step 3 evaluates only from that run's in-memory cache. Every Health day reads as 0 on later refreshes.
+• Result: a 10k-steps day that crosses the goal at 18:00 never becomes a win, with no Day won and no ledger entry.
+• Fix: always re-fetch from yesterday (or the last evaluated day, whichever is earlier) through today, and build day results from stored MetricDay rows plus manual logs (DATABASE §5).
+2. Day won and the celebration only fire for per-win rewards (Engagement.swift:100-137). End, jar, item-end and One time challenges never show Day won or the celebration. "Done" is never found by comparing old and new snapshots.
+3. v A rings target of 3 can never be won for most users (ActivitySources.swift:99). Move is checked with appleMoveTime, not activeEnergyBurned against its goal.
+4. V Level up isn't implemented at all: no Derive function, no Celebration button, no tests (A28-A31, R06, R09). TASK.md wrongly marks it done.
+5. Rewards can be claimed twice (MomentsViews.swift:121). "See your trophy" offers "Claim reward" again for an already-claimed challenge, and a double tap writes duplicate final entries.
+6. V A No end item with a value can never be claimed (ChallengePageView.swift:431). The WORTH footer branch comes before the "I'm done • claim" branch.
+7. Nudges can fire on the wrong day (Engagement.swift: 188). A refresh after 20:00 schedules today's nudge for tomorrow 20:00 with today's numbers, and it isn't removed when tomorrow is won. Nudges for scrapped challenges are never removed.
+8. Dynamic Type is unsupported. Every font is a fixed size, and there's no @ScaledMetric (AGENTS §3.8).
+9. Manual mode has no Log today button. A small pill replaces the large black button described in SPEC $7.9.
+
+3. Medium: domain and data
+• V Wrong reward phrases (Derive.swift: 32-50):
+• Trip "Iceland" gives "an trip to Iceland". Food gives "a Pizza" (should be "a treat: Pizza"). Other gives "a Concert" (should be "Concert").
+• Money phrases say "a win" where COPY says "each time".
+• V Item savings can exceed the price (Derive.swift: 17). A 2100 item over 40 wins saves 7117 after 39 wins, and NEXT WIN shows -317. Cap the amount at the value.
+• V One time ignores today in the engine (Engine.swift:112). The app is saved by Mapping passing a best that includes
+today, but the A13 test is hollow because it passes best = 21.1 directly.
+• Validation order and text are off (Derive.swift:84-100). The reward should be checked second, and "Name your reward", "Rings target is 1 to 3" and "Set wins and days" aren't in COPY.
+• Yesterday turns final before 03:00 (Mapping.swift:26). Backfilled older days are never marked final.
+• Item-saving amounts are wrong when several days are backfilled at once (Engagement.swift:108). They use the current win count, not that day's.
+• Per-win money keeps being added after a challenge is done or past its window (Engagement.swift:100).
+• Past days that become wins within the grace period never show Day won. Out of reach and day won notifications are never sent.
+• The 2-second debounce drops calls instead of merging them. A Log today save right after a foreground refresh isn't evaluated.
+• The background refresh task doesn't run the Evaluator. HealthKit observers are registered in onAppear (should be App init), and HealthKit's completion is called before the Evaluator runs.
+• Sleep uses an overlap window instead of an end-time window, so samples can count in two days.
+• The dedupe pass skips ManualLog and ChallengeRecord.
+• Nudge money ignores the currency.
+• The iCloud backup flag is stored in AppSettings, where DATABASE 82 says UserDefaults.
+• CreateDraft.swift (in Domain) imports Observation, where Domain should use Foundation only.
+
+4. Medium: Ul and copy (compare against COPY.md)
+• Overview (keep the Challenges redesign):
+• Band subtitles are missing "V" and ". today {t)".
+• Challenge page:
+• Wrong rule lines for once and open.
+• The hero unit says "of 5 run".
+• Wrong hero lines ("Done.", "In} days to go", "keep going").
+• ": BY HAND" never shows.
+• "Rewarded" never shows beside the pill.
+• The No end each max reward is wrong.
+• The hero threshold is 340, where DESIGN says 420.
+• Create:
+• "until I stop" should be "every day, no end", "exercise 30 min" should be "exercise for 30 minutes".
+• Invented hints and labels.
+• Wrong food and other placeholders.
+• Typing the name overwrites the item name and the other way round.
+• Rescue:
+• The broken-streak text is wrong.
+• The toasts are missing the dates and counts.
+• The scrap confirm never resets.
+• Celebration:
+• Wrong stats lines and claim toast.
+• The trophy says "DAYS" (should be "IN A ROW").
+• The ring text is missing the type and date.
+• Onboarding:
+• It has 7 screens; the violet mini-page is missing.
+• "Explore the demo first" should be "Explore first".
+• The roll Task loops forever and isn't cancelled.
+• There's no swipe under Reduce Motion.
+• The health switches have no labels.
+• Today pill: "TODAY • LOG YOUR PROGRESS" is invented.
+• Start toasts: they don't match toast.started
+
+5. Low
+• Force unwraps in Types.swift (DayKey), Mapping.swift: 24 and ActivitySources.swift:71.
+• Wrong stand type: stand uses appleStandTime; it should use the appleStandhour category.
+• Run and rings queries have no date predicate: they fetch all history.
+• Colors outside DesignSystem (a yellow in confetti, systemBackground, black).
+• Manual wins use flat opacity instead of stripes.
+• The GelFill wave always shows, even under the today band or when done.
+• print and /tmp writes in Ul tests.
+• Debug stubs: the "Finish this challenge" and "Miss days" buttons do nothing.
+• Extras not in SPEC: ShareCard, ShareLink and the GelFill touch jelly. They have invented strings, and the page is re-rendered offscreen on every change.
+
+6. Tests
+• Missing:
+• A11, A15, A21 and A25-A32.
+• C05-C08, C11-C13 as Ul tests.
+• R*, N*, O*, S*. W* no longer applies, because the Rewards sheet was removed.
+• Hollow:
+• A13 passes best directly.
+• A06 sets y by hand.
+• A33 builds a London calendar but never uses it.
+• D06 checks constants, not the real container.
+• D07 and D10 never run the Evaluator.
+• Wrong expectations:
+• Tests assert invented strings ("Explore the demo first", "Name your reward").
+• C02 expects straight quotes.
+
+7. Suggested order of work
+1. Bring in the current docs, COPY.md and the prototype.
+2. Fix the Evaluator (High 1, 2, 7) and the rings query (High 3), with tests through the real Evaluator (D07, D10, H03).
+3. Domain fixes:
+• phrases;
+• savings cap;
+• One time;
+• validation;
+• level up with A28-A31.
+4. Missing features: Level up, the Log today button, the claim guard and the No end claim.
+5. Copy pass against COPY.md, then fix the Ul tests that assert invented strings.
+6. Dynamic Type and the Reduce Motion gaps.
+7. Update TASK.md honestly: MO-M5 exit criteria are not met yet.

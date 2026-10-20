@@ -18,10 +18,10 @@ public struct OverviewView: View {
                     header
 
                     if challenges.isEmpty {
-                        Text(Copy.noChallenges).font(.system(size: 17, weight: .medium))
+                        Text(Copy.noChallenges).font(FillFont.scaled(17, weight: .medium))
                             .padding(.horizontal, 20).padding(.top, 24)
                         Button(Copy.firstChallenge) { app.showingCreate = true }
-                            .font(.system(size: 17, weight: .bold)).foregroundStyle(.white)
+                            .font(FillFont.scaled(17, weight: .bold)).foregroundStyle(.white)
                             .padding(.horizontal, 24).padding(.vertical, 16)
                             .background(FillColor.ink, in: Capsule())
                             .padding(.horizontal, 20)
@@ -49,7 +49,7 @@ public struct OverviewView: View {
 
     private func sectionBtn(_ t: String, count: Int) -> some View {
         Button("\(t) (\(count))") { section = t }
-            .font(.system(size: 15, weight: .semibold))
+            .font(FillFont.scaled(15, weight: .semibold))
             .foregroundStyle(section == t ? .white : FillColor.ink)
             .padding(.horizontal, 20).padding(.vertical, 10)
             .background(section == t ? FillColor.ink : .clear, in: Capsule())
@@ -59,7 +59,7 @@ public struct OverviewView: View {
     private func sectionList(_ items: [(offset: Int, element: Challenge)], empty: String) -> some View {
         Group {
             if items.isEmpty {
-                Text(empty).font(.system(size: 17, weight: .medium))
+                Text(empty).font(FillFont.scaled(17, weight: .medium))
                     .foregroundStyle(FillColor.text2)
                     .padding(.horizontal, 20).padding(.top, 24)
             } else {
@@ -84,11 +84,11 @@ public struct OverviewView: View {
             Spacer()
             Button(action: { app.showingSettings = true }) {
                 Image(systemName: "gearshape")
-                    .font(.system(size: 20)).foregroundStyle(FillColor.ink)
+                    .font(FillFont.scaled(20)).foregroundStyle(FillColor.ink)
                     .frame(width: 44, height: 44)
                     .background(FillColor.chipBg, in: Circle())
             }
-            .accessibilityLabel("Settings")
+            .accessibilityLabel(Copy.settingsLabel)
         }
         .padding(.horizontal, 20).padding(.top, 8)
     }
@@ -163,9 +163,9 @@ public struct OverviewBand: View {
         let pc = Int((base * 100).rounded())
         return HStack {
             VStack(alignment: .leading, spacing: 2) {
-                Text(challenge.name).font(.system(size: 20, weight: .heavy))
+                Text(challenge.name).font(FillFont.scaled(20, weight: .heavy))
                     .foregroundStyle(dark ? FillColor.ink : .white)
-                Text(bandSub()).font(.system(size: 12, weight: .medium))
+                Text(bandSub()).font(FillFont.scaled(12, weight: .medium))
                     .foregroundStyle(dark ? FillColor.text2 : .white.opacity(0.75))
             }
             Spacer()
@@ -177,20 +177,32 @@ public struct OverviewBand: View {
     }
     private func bandSub() -> String {
         guard let s = snapshot else { return "" }
+        let unit = MetricDefaults.unit(for: challenge.metric)
         switch challenge.type {
-        case .flex: return "Flexible · \(s.wins) of \(challenge.x) wins · today \(Int(s.todayRatio * 100))%"
-        case .streak: return "Streak · \(s.wins) of \(challenge.x) days · today \(Int(s.todayRatio * 100))%"
-        case .once: return "One time · best so far"
+        case .flex:
+            return Copy.bandSubFlex(wins: s.wins, x: challenge.x,
+                                    today: Format.metric(s.todayValue, metric: challenge.metric),
+                                    unit: unit)
+        case .streak:
+            return Copy.bandSubStreak(wins: s.wins, x: challenge.x,
+                                      today: Format.metric(s.todayValue, metric: challenge.metric),
+                                      unit: unit)
+        case .once:
+            return Copy.bandSubOnce(best: Format.metric(s.best, metric: challenge.metric), unit: unit)
         case .open:
             if challenge.reward.kind == .money, challenge.reward.payout == .jar {
-                return "Jar · \(Format.money(s.moneyEarned)) of \(Format.money(challenge.reward.jarTarget))"
+                let saved = min(challenge.reward.jarTarget,
+                                challenge.reward.amount * Decimal(s.wins))
+                return Copy.bandSubJar(
+                    saved: Format.money(saved, currency: challenge.reward.currency),
+                    target: Format.money(challenge.reward.jarTarget, currency: challenge.reward.currency))
             }
-            return "No end · \(s.wins) wins"
+            return Copy.bandSubOpen(wins: s.wins)
         }
     }
     private func rightText(pc: Int) -> String {
-        if snapshot?.done == true { return "DONE · TROPHY" }
-        if snapshot?.outOfReach == true || snapshot?.streakBroken == true { return "tap to fix" }
-        return "\(pc)% OF GOAL"
+        if snapshot?.done == true { return Copy.bandDone }
+        if snapshot?.outOfReach == true || snapshot?.streakBroken == true { return Copy.bandFix }
+        return Copy.bandPercent(pc)
     }
 }

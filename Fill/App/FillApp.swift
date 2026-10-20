@@ -9,6 +9,10 @@ private let log = Logger(subsystem: "app.fill.do", category: "app")
 struct FillApp: App {
     @State private var appState = AppState()
 
+    /// One container for the app and the background task. Creating it twice
+    /// would open two separate stacks.
+    static let container: ModelContainer = makeContainer()
+
     static func makeContainer() -> ModelContainer {
         // DATABASE §2: synced + local stores. CloudKit off until M6 switch.
         // Membership mirrors StorePlan.synced / StorePlan.local (see D06).
@@ -32,15 +36,19 @@ struct FillApp: App {
     }
 
     init() {
-        // Background app refresh: refetch Health history when iOS wakes us (H03).
+        // IMPLEMENTATION §5.4 — register observers before the first frame,
+        // not from onAppear (review Medium).
+        HealthKitController.shared.registerBackgroundDelivery()
+        // Background app refresh: refetch Health and run the same Evaluator
+        // when iOS wakes us (H03). The old task only rescheduled itself.
         BGTaskScheduler.shared.register(forTaskWithIdentifier: "app.fill.do.refresh", using: nil) { task in
             guard let refresh = task as? BGAppRefreshTask else { return }
             refresh.expirationHandler = { refresh.setTaskCompleted(success: false) }
-            Task {
-                // NOTE: background context refresh needs the shared container;
-                // the main actor path below covers foreground; this keeps the
-                // task claimed and reschedules it.
-                Self.scheduleRefresh()
+            Task { @MainActor in
+                let context = ModelContext(FillApp.container)
+                Repository(context: context).dedupe()
+                await Evaluator.shared.refresh(context: context, app: AppState(), now: Date())
+                FillApp.scheduleRefresh()
                 refresh.setTaskCompleted(success: true)
             }
         }
@@ -58,7 +66,7 @@ struct FillApp: App {
                 .environment(appState)
                 .preferredColorScheme(.light) // v1 ships light UI only
         }
-        .modelContainer(Self.makeContainer())
+        .modelContainer(Self.container)
     }
 }
 
@@ -99,11 +107,22 @@ struct RootView: View {
         .onAppear {
             guard !didLaunch else { return }
             didLaunch = true
+            #if DEBUG
+            // Deterministic UI tests: start at the welcome screen.
+            if ProcessInfo.processInfo.arguments.contains("-uiTestResetOnboarding") {
+                let s = Repository(context: context).settings()
+                s.onboardingDone = false
+                try? context.save()
+            }
+            #endif
             let repo = Repository(context: context)
             repo.dedupe()
             _ = repo.settings() // ensure single row
-            // IMPLEMENTATION §5.4 — observers before the first frame.
-            HealthKitController.shared.registerBackgroundDelivery()
+            // Health observers are registered in FillApp.init; this closure
+            // lets their completion wait for the Evaluator.
+            HealthKitController.shared.onRefresh = { [context, app] in
+                await Evaluator.shared.refresh(context: context, app: app, now: app.now)
+            }
             FillApp.scheduleRefresh()
             refresh()
         }
@@ -112,7 +131,13 @@ struct RootView: View {
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name.NSSystemTimeZoneDidChange)) { _ in refresh() }
         .onReceive(NotificationCenter.default.publisher(for: .fillHealthUpdate)) { _ in refresh() }
         .overlay(alignment: .bottom) {
-            if let t = app.toast { Toast(text: t) }
+            if let t = app.toast {
+                if t == Copy.onbStartedToast {
+                    WondayToast()
+                } else {
+                    Toast(text: t)
+                }
+            }
         }
         // Overlays are owned here (IMPLEMENTATION §8.4) so the Evaluator can
         // open them and so Create is presented exactly once app-wide (the
@@ -139,7 +164,7 @@ struct RootView: View {
         )) { item in
             DayWonView(colorToken: colorForChallenge(named: item.data.name),
                        amountText: item.data.amount,
-                       subText: "\(item.data.name) · \(item.data.wins) wins")
+                       subText: Copy.dayWonSub(item.data.name, item.data.wins))
         }
         .fullScreenCover(item: Binding(
             get: { app.celebrating.map { CelebrationItem(id: $0) } },
@@ -157,7 +182,6 @@ struct RootView: View {
     private func refresh() {
         Task {
             await Evaluator.shared.refresh(context: context, app: app, now: app.now)
-            app.dataVersion += 1
         }
     }
 

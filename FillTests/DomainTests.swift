@@ -82,9 +82,11 @@ struct EngineTests {
     }
     @Test func test_A06_extend() {
         let start = DayKey(year: 2026, month: 9, day: 29)
-        var c = flexChallenge(start: start); c.y = 31
-        let s = Engine.snapshot(challenge: c, days: days(start: start, w: 9, m: 11, target: 10_000, todayValue: 0),
+        let c = flexChallenge(start: start)
+        let ext = Derive.extended(c, by: 1)
+        let s = Engine.snapshot(challenge: ext, days: days(start: start, w: 9, m: 11, target: 10_000, todayValue: 0),
                                 now: noon(today), calendar: cal())
+        #expect(ext.y == 31)
         #expect(!s.outOfReach)
         #expect(s.endDate == DayKey(year: 2026, month: 10, day: 29))
     }
@@ -126,6 +128,22 @@ struct EngineTests {
         let s = Engine.snapshot(challenge: c, days: ds, now: noon(today), calendar: cal())
         #expect(s.streakBrokenOnDay == 5 && s.layer == 0)
     }
+    @Test func test_A11_switchToFlexKeepsWins() {
+        let c = Challenge(name: "K", colorToken: "violet", metric: .steps, target: 10_000,
+                          type: .streak, x: 30, y: 30, start: today.adding(days: -18),
+                          reward: .moneyEach(amount: 1000))
+        var ds: [DayResult] = []
+        for i in 0..<18 {
+            ds.append(DayResult(date: c.start.adding(days: i), value: i == 4 ? 0 : 10_000, isFinal: true))
+        }
+        ds.append(DayResult(date: today, value: 0))
+        let before = Engine.snapshot(challenge: c, days: ds, now: noon(today), calendar: cal())
+        let flex = Derive.switchedToFlex(c)
+        let s = Engine.snapshot(challenge: flex, days: ds, now: noon(today), calendar: cal())
+        #expect(flex.type == .flex && flex.x == 30 && flex.y == 35)
+        #expect(s.wins == before.wins)
+        #expect(s.streakBrokenOnDay == nil)
+    }
     @Test func test_A12_onceProgress() {
         let c = Challenge(name: "HM", colorToken: "blue", metric: .run, target: 21.1,
                           type: .once, x: 1, y: 0, start: today.adding(days: -10),
@@ -137,8 +155,12 @@ struct EngineTests {
         let c = Challenge(name: "HM", colorToken: "blue", metric: .run, target: 21.1,
                           type: .once, x: 1, y: 0, start: today,
                           reward: Reward(kind: .money, payout: .end, amount: 50_000))
-        let s = Engine.snapshot(challenge: c, days: [], best: 21.1, now: noon(today), calendar: cal())
-        #expect(s.done)
+        // Today's run counts as the best attempt (the old test passed best in
+        // directly, so it never exercised the engine's today handling).
+        let s = Engine.snapshot(challenge: c,
+                                days: [DayResult(date: today, value: 21.1)],
+                                now: noon(today), calendar: cal())
+        #expect(s.best == 21.1 && s.done)
     }
     @Test func test_A14_jarProgress() {
         let c = Challenge(name: "Jar", colorToken: "green", metric: .steps, target: 8_000,
@@ -150,6 +172,18 @@ struct EngineTests {
         let s = Engine.snapshot(challenge: c, days: ds, now: noon(today), calendar: cal())
         #expect(abs(s.base - 0.43) < 0.005)
         #expect(s.moneyLeft == 200_000)
+    }
+    @Test func test_A15_jarDoneOnWin() {
+        let c = Challenge(name: "Jar", colorToken: "green", metric: .steps, target: 8_000,
+                          type: .open, x: 0, y: 0, start: today.adding(days: -199),
+                          reward: Reward(kind: .money, payout: .jar, amount: 1_000, jarTarget: 200_000))
+        var ds: [DayResult] = []
+        for i in 0..<199 {
+            ds.append(DayResult(date: c.start.adding(days: i), value: 8_000, isFinal: true))
+        }
+        ds.append(DayResult(date: today, value: 8_000))
+        let s = Engine.snapshot(challenge: c, days: ds, now: noon(today), calendar: cal())
+        #expect(s.wins == 200 && s.done)
     }
     @Test func test_A16_openEachNeverDone() {
         let c = Challenge(name: "N", colorToken: "teal", metric: .steps, target: 10_000,
@@ -175,6 +209,15 @@ struct EngineTests {
         let s = Engine.snapshot(challenge: c, days: days(start: start, w: 9, m: 3, target: 10_000, todayValue: 0),
                                 now: noon(today), calendar: cal())
         #expect(s.moneyEarned == 90_000 && s.moneyLeft == 110_000)
+    }
+    @Test func test_A21_moneyEndNotYetEarned() {
+        let start = today.adding(days: -12)
+        let c = flexChallenge(start: start,
+                              reward: Reward(kind: .money, payout: .end, amount: 50_000))
+        let s = Engine.snapshot(challenge: c,
+                                days: days(start: start, w: 2, m: 1, target: 10_000, todayValue: 0),
+                                now: noon(today), calendar: cal())
+        #expect(s.moneyEarned == 0 && s.moneyLeft == 50_000)
     }
     @Test func test_A19_bonusUnclaimed() {
         let start = today.adding(days: -20)
@@ -211,6 +254,40 @@ struct EngineTests {
                                 now: noon(today), calendar: cal())
         #expect(a.dayIndex == b.dayIndex)
     }
+    @Test func test_A28_levelUpSteps() {
+        let c = flexChallenge(start: today)
+        let next = Derive.levelUp(c, today: today)
+        #expect(next?.target == 11_000)
+        #expect(next?.name == "October 10K · Level 2")
+        #expect(next?.level == 2)
+        #expect(next?.claimed == false)
+    }
+    @Test func test_A29_levelUpRings() {
+        let c = Challenge(name: "Rings", colorToken: "violet", metric: .rings, target: 2,
+                          type: .streak, x: 30, y: 30, start: today, reward: .moneyEach(amount: 1_000))
+        #expect(Derive.levelUp(c, today: today)?.target == 3)
+    }
+    @Test func test_A30_levelUpRun() {
+        let c = Challenge(name: "Run", colorToken: "blue", metric: .run, target: 5,
+                          type: .once, x: 1, y: 0, start: today,
+                          reward: Reward(kind: .money, payout: .end, amount: 1_000))
+        #expect(Derive.levelUp(c, today: today)?.target == 5.5)
+    }
+    @Test func test_A31_levelUpRingsAtThreeNotOffered() {
+        let c = Challenge(name: "Rings", colorToken: "violet", metric: .rings, target: 3,
+                          type: .streak, x: 30, y: 30, start: today, reward: .moneyEach(amount: 1_000))
+        #expect(Derive.levelUp(c, today: today) == nil)
+    }
+    @Test func test_A32_futureDayIgnored() {
+        let start = today.adding(days: -5)
+        let c = flexChallenge(start: start)
+        var ds = days(start: start, w: 2, m: 3, target: 10_000, todayValue: 0)
+        // Device moved west: a row for tomorrow exists.
+        ds.append(DayResult(date: today.adding(days: 1), value: 10_000, isFinal: false))
+        let s = Engine.snapshot(challenge: c, days: ds, now: noon(today), calendar: cal())
+        #expect(s.wins == 2)
+        #expect(s.todayWon == false)
+    }
     @Test func test_A33_dayKeyDST() {
         var london = Calendar(identifier: .gregorian)
         london.timeZone = TimeZone(identifier: "Europe/London")!
@@ -218,6 +295,12 @@ struct EngineTests {
         let b = DayKey(year: 2026, month: 10, day: 26)
         #expect(a.days(to: b) == 2)
         #expect(a.adding(days: 2) == b)
+        // London leaves BST on 25 Oct: both midnights still map to their own
+        // calendar day, exactly as in a fixed-offset zone.
+        let before = london.date(from: DateComponents(year: 2026, month: 10, day: 24, hour: 12))!
+        let after = london.date(from: DateComponents(year: 2026, month: 10, day: 26, hour: 12))!
+        #expect(DayKey.from(date: before, calendar: london) == a)
+        #expect(DayKey.from(date: after, calendar: london) == b)
     }
     @Test func test_Format_INR() {
         #expect(Format.money(100_000) == "₹1,00,000")
@@ -262,28 +345,52 @@ struct EngineTests {
         d.metric = .steps; d.target = 10_000; d.type = .flex
         d.x = 20; d.y = 30
         d.rewardKind = .item; d.itemName = "  "
-        #expect(Derive.validate(d) == "Name your reward")
+        #expect(Derive.validate(d) == Copy.validationName())
+    }
+    @Test func test_C_rewardCheckedBeforeTarget() {
+        var d = Derive.Draft()
+        d.metric = nil; d.target = nil; d.type = .flex
+        d.x = 20; d.y = 30
+        d.rewardKind = .item; d.itemName = ""
+        // Reward is checked before target, but blanks are still first.
+        d.metric = .steps
+        #expect(Derive.validate(d) == Copy.validationName())
     }
 
-    // MARK: - CreateModel order lock + flow (C02–C04)
+    // MARK: - CreateLogic order lock + flow (C02–C04)
 
-    @Test @MainActor func test_C02_lockedBlankHint() {
-        let m = CreateModel()
+    @Test func test_C02_lockedBlankHint() {
+        var m = CreateLogic()
         m.tapBlank(2) // reward before act
         #expect(m.openPanel == nil)
-        #expect(m.hint == "First set \"what you'll do\".")
+        #expect(m.hint == Copy.lockedHint("what you'll do"))
+        #expect(m.shakeBlank == 0)
     }
-    @Test @MainActor func test_C03_fillActOpensRule() {
-        let m = CreateModel()
+    @Test func test_C03_fillActOpensRule() {
+        var m = CreateLogic()
         m.tapBlank(0)
         #expect(m.openPanel == 0)
         m.draft.metric = .steps; m.draft.target = 10_000
         m.done(0)
         #expect(m.filled == [0])
-        #expect(m.openPanel == nil) // next opens after 0.38s async
+        #expect(m.openPanel == nil)
+        #expect(m.nextUnfilled == 1)
     }
-    @Test @MainActor func test_C04_factsEndsMisses() {
-        let m = CreateModel()
+    @Test func test_createStartsWithNothingSelected() {
+        let m = CreateLogic()
+        #expect(m.draft.metric == nil)
+        #expect(m.draft.target == nil)
+        #expect(!m.filled.contains(0))
+    }
+    @Test func test_doneWithNoMetricPromptsInsteadOfFilling() {
+        var m = CreateLogic()
+        m.tapBlank(0)
+        m.done(0) // no chip tap: must not fill
+        #expect(!m.filled.contains(0))
+        #expect(m.hint == Copy.pickWhat)
+    }
+    @Test func test_C04_factsEndsMisses() {
+        var m = CreateLogic()
         m.draft.type = .flex; m.draft.x = 20; m.draft.y = 30
         m.refreshFacts()
         #expect(m.factsMisses == "10")
@@ -291,8 +398,20 @@ struct EngineTests {
         let today = DayKey.from(date: Date(), calendar: .current)
         #expect(m.factsEnds == Format.date(today.adding(days: 29)))
     }
-    @Test @MainActor func test_C_problemToast() {
-        let m = CreateModel()
+    @Test func test_C_openEachHasNoMaxAndClearsCounts() {
+        var m = CreateLogic()
+        m.draft.rewardKind = .money
+        m.draft.moneyPayout = .each
+        m.draft.amount = 1_000
+        m.pickType(.flex)
+        #expect(m.factsMax == Format.money(20_000))
+        m.pickType(.open)
+        #expect(m.draft.x == 0 && m.draft.y == 0)
+        #expect(m.factsMax == "—")
+        #expect(m.factsEnds == Copy.never)
+    }
+    @Test func test_C_problemToast() {
+        var m = CreateLogic()
         #expect(m.problem == "Fill in 3 blanks")
         m.filled = [0, 1, 2]
         m.draft.metric = .steps; m.draft.target = 10_000
@@ -301,11 +420,19 @@ struct EngineTests {
         #expect(m.problem == "Wins must fit in the days")
         #expect(!m.valid)
     }
-    @Test @MainActor func test_C_buildReward() {
-        let m = CreateModel()
+    @Test func test_C_buildReward() {
+        var m = CreateLogic()
         m.draft.rewardKind = .money; m.draft.moneyPayout = .bonus
         m.draft.amount = 1_000; m.draft.bonus = 10_000
         let r = m.buildReward()
         #expect(r.kind == .money && r.payout == .bonus && r.amount == 1_000 && r.bonus == 10_000)
+    }
+    @Test func test_C_itemNameAndChallengeNameStayIndependent() {
+        var m = CreateLogic()
+        m.draft.itemName = "DGX Spark"
+        #expect(m.autoName == "DGX Spark")
+        m.name = "My challenge"; m.nameEdited = true
+        m.draft.itemName = "Sony A7"
+        #expect(m.name == "My challenge")
     }
 }

@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>wonday: Reward yourself for your health goals</title>
+<meta name="description" content="Set a health goal, pick your own reward, and let Apple Health count for you. No sign-up, no account, no server.">
+<meta name="theme-color" content="#FF6B1A" id="themeColor">
+<link rel="icon" href="assets/wonday-favicon.png">
+<link rel="apple-touch-icon" href="assets/wonday-favicon.png">
+<link rel="stylesheet" href="styles.css">
+<!-- Share image: replace assets/wonday-share.png with an absolute https:// URL once the site has a domain. -->
+<!-- Live domain: https://wonday.kranehx.com -->
+<link rel="canonical" href="https://wonday.kranehx.com/">
+<meta property="og:site_name" content="wonday">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://wonday.kranehx.com/">
+<meta property="og:title" content="wonday: Reward yourself for your health goals">
+<meta property="og:description" content="Set a health goal, pick your own reward, and let Apple Health count for you. No sign-up, no account, no server.">
+<meta property="og:image" content="https://wonday.kranehx.com/assets/wonday-share.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="wonday challenge screen filling up as steps are counted">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="wonday: Reward yourself for your health goals">
+<meta name="twitter:description" content="Set a health goal, pick your own reward, and let Apple Health count for you. No sign-up, no account, no server.">
+<meta name="twitter:image" content="https://wonday.kranehx.com/assets/wonday-share.png">
+<!-- Smart App Banner: fill in the real App Store ID when the listing is live, then uncomment.
+<meta name="apple-itunes-app" content="app-id=000000000">
+-->
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"SoftwareApplication","name":"wonday",
+"description":"Set a health goal, pick your own reward, and let Apple Health count for you. No sign-up, no account, no server.",
+"operatingSystem":"iOS","applicationCategory":"Health & Fitness",
+"offers":{"@type":"Offer","price":"0","priceCurrency":"INR"}}
+</script>
+</head>
+<body data-block="hero">
+
+<header class="topbar" id="topbar">
+  <a class="logo" href="#top" aria-label="wonday home"><img class="brand-icon" src="assets/wonday-icon.png" alt="" width="72" height="72"><img class="brand-logo" src="assets/wonday-wordmark-transparent.png" alt="wonday" width="120" height="45"></a>
+  <nav class="links" aria-label="Sections">
+    <a href="#health">Apple Health</a>
+    <a href="#try">Try it</a>
+    <a href="#rewards">Rewards</a>
+    <a href="#story">Story</a>
+    <a href="#privacy">Privacy</a>
+  </nav>
+  <a class="getapp" href="#final">Get the app</a>
+</header>
+
+<main id="top">
+
+  <!-- 1 HERO -->
+  <section class="block hero" id="hero" data-theme="hero">
+    <div class="orb o1"></div><div class="orb o2"></div><div class="orb o3"></div>
+    <div class="wrap">
+      <div class="copy reveal">
+        <p class="kicker">For iPhone · Works with Apple Health</p>
+        <h1>Reward<br>yourself<br>for moving.</h1>
+        <p class="sub">Set a health goal. Choose your reward. Win the day.</p>
+        <p class="promise">We only keep the score. You pay for your rewards.</p>
+        <div class="cta-row">
+          <a class="btn light" id="heroBtn" href="#final"><span aria-hidden="true">↓</span> Download for iPhone</a>
+          <a class="textlink" href="#try">Try it here ↓</a>
+        </div>
+        <p class="chips">✓ No sign-up &nbsp;&nbsp; ✓ No account &nbsp;&nbsp; ✓ No server</p>
+      </div>
+      <div class="stage reveal">
+        <div class="phone" id="heroPhone" role="img" aria-label="wonday challenge screen filling up as steps are counted">
+          <div class="notch"></div>
+          <div class="screen">
+            <div class="app-top">
+              <div class="app-row">
+                <span class="pill" id="heroPill">◉ 12,468 steps</span>
+                <span class="daylabel" id="heroDay">Day 13 of 30</span>
+              </div>
+              <div class="app-name" id="heroName">October 10K</div>
+              <div class="app-rule" id="heroRule">Flexible · 20 of 30 days</div>
+              <div class="bars" id="heroBars" aria-hidden="true"></div>
+              <div class="goalrow"><span id="heroMax">₹2,00,000</span><span id="heroEnds">Ends 5 Nov</span></div>
+            </div>
+            <div class="app-fill" id="heroFill">
+              <svg class="wave" viewBox="0 0 600 18" preserveAspectRatio="none" aria-hidden="true"><path d="M0 10 Q 25 0 50 10 T 100 10 T 150 10 T 200 10 T 250 10 T 300 10 T 350 10 T 400 10 T 450 10 T 500 10 T 550 10 T 600 10 L600 18 L0 18 Z"/></svg>
+              <div class="fill-clip">
+              <div class="stamp" id="heroStamp">wonday ✓</div>
+              <div class="bignum"><span id="heroWins">0</span><small> of 20 wins</small></div>
+              <div class="rem" id="heroRem">8 wins to go in 14 days</div>
+              <div class="confetti" id="heroConfetti" aria-hidden="true"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="float f1"><span class="fic green">₹</span><span><b>+ ₹10,000</b><small>DAY WON</small></span></div>
+        <div class="float f2"><span class="fic pink">✦</span><span><small>REWARD</small><b>Trip to Taiwan</b></span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2 HEALTH: no logging, it counts itself -->
+  <section class="block health" id="health" data-theme="health">
+    <div class="orb o1"></div><div class="orb o2"></div>
+    <div class="wrap">
+      <div class="stage reveal">
+        <div class="phone small" role="img" aria-label="wonday reading steps, rings, exercise and sleep from Apple Health">
+          <div class="notch"></div>
+          <div class="screen hscreen">
+            <div class="hnote" id="hNote">
+              <img src="assets/wonday-icon.png" alt="" width="72" height="72" loading="lazy" decoding="async">
+              <div><b>That&rsquo;s a wonday! ✓</b><span>10,000 steps. ₹1,000 won today.</span></div>
+              <em>now</em>
+            </div>
+            <div class="hconn">
+              <div class="hicons">
+                <span class="hheart" aria-label="Apple Health">♥</span>
+                <span class="hflow" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+                <img class="hwonday" src="assets/wonday-icon.png" alt="wonday" width="104" height="104" loading="lazy" decoding="async">
+              </div>
+              <p class="hstatus"><i></i>Connected to Apple Health · read only</p>
+            </div>
+            <div class="hrows">
+              <div class="hcard">
+                <div class="hcard-top"><span class="dot orange"></span><span class="hlabel">Steps</span>
+                  <span class="hval"><b id="hStepsNum">0</b></span>
+                  <span class="hwon" id="hWon">WON ✓</span></div>
+                <div class="htrack"><i id="hStepsBar" class="fill orange"></i></div>
+              </div>
+              <div class="hcard">
+                <div class="hcard-top"><span class="dot pink"></span><span class="hlabel">Activity rings</span>
+                  <span class="hval"><b id="hRingsNum">0</b><small> of 3 rings</small></span></div>
+                <div class="htrack"><i id="hRingsBar" class="fill pink"></i></div>
+              </div>
+              <div class="hcard">
+                <div class="hcard-top"><span class="dot green"></span><span class="hlabel">Exercise</span>
+                  <span class="hval"><b id="hExNum">0</b><small> min</small></span></div>
+                <div class="htrack"><i id="hExBar" class="fill green"></i></div>
+              </div>
+              <div class="hcard">
+                <div class="hcard-top"><span class="dot blue"></span><span class="hlabel">Sleep</span>
+                  <span class="hval"><b id="hSleepNum">0.0</b><small> h sleep</small></span></div>
+                <div class="htrack"><i id="hSleepBar" class="fill blue"></i></div>
+              </div>
+            </div>
+            <p class="hsync" id="hSync">Syncing from Apple Health…</p>
+          </div>
+        </div>
+      </div>
+      <div class="copy reveal">
+        <p class="kicker">Works with Apple Health</p>
+        <h2>No logging.<br>It counts itself.</h2>
+        <p class="sub">wonday reads your steps, rings, workouts and sleep from Apple Health. Just move. Your day fills up on its own.</p>
+        <ul class="hchecks">
+          <li><i>✓</i>Connect once. That&rsquo;s it.</li>
+          <li><i>✓</i>No Apple Watch? Your iPhone counts steps.</li>
+          <li><i>✓</i>Read only. Nothing leaves your iPhone.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3 TRY IT -->
+  <section class="block try" id="try" data-theme="try">
+    <div class="orb o1"></div><div class="orb o2"></div>
+    <div class="wrap">
+      <div class="copy reveal">
+        <p class="kicker">Try it</p>
+        <h2>Walk.<br>Watch it fill.</h2>
+        <p class="sub">Hold the button on the phone. At 10,000 steps, the reward is yours.</p>
+        <p class="promise">We only keep the score.<br>You pay for your rewards.</p>
+      </div>
+      <div class="stage reveal">
+        <div class="phone small" role="img" aria-label="wonday try-it screen: hold to walk 10,000 steps and unlock a reward">
+          <div class="notch"></div>
+          <div class="screen walk-screen" id="walkScreen">
+            <div class="walk-fill" id="walkFill"></div>
+            <div class="walk-top" id="walkTop">
+              <div class="walk-title">Walk 10,000 steps</div>
+              <div class="walk-sub">to unlock your reward.</div>
+            </div>
+            <div class="walk-count" id="walkCount"><span id="walkNum">0</span><small>steps</small></div>
+            <div class="unlock" id="unlockCard">Reward unlocked <b>₹<span id="unlockNum">0</span></b></div>
+            <div class="walk-bottom" id="walkBottom">
+              <button class="holdbtn" id="holdBtn" aria-label="Hold to walk"><span class="pulse"></span><span class="feet">👣</span></button>
+              <div class="holdlabel">Hold to walk</div>
+              <button class="resetlink" id="walkAgain" hidden>Walk again ↺</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4 YOUR DEAL -->
+  <section class="block deal" id="rewards" data-theme="deal">
+    <div class="orb o1"></div><div class="orb o2"></div>
+    <div class="wrap">
+      <div class="stage reveal">
+        <div class="phone small pinkphone" role="img" aria-label="wonday new challenge screen: I walk 10,000 steps on 20 of 30 days to win 10,000 rupees for each win">
+          <div class="notch"></div>
+          <div class="screen pinks">
+            <p class="newlabel">New challenge</p>
+            <p class="sentence" id="dealSentence" aria-live="polite">I walk 10,000 steps on 20 of 30 days to win ₹10,000 for each win.</p>
+            <p class="paynote">You pay for the reward. We keep the score.</p>
+            <button class="startbtn" id="dealBtn">Start challenge</button>
+          </div>
+        </div>
+      </div>
+      <div class="copy reveal">
+        <p class="kicker">Your deal</p>
+        <h2>You<br>choose<br>the reward.</h2>
+        <p class="sub">Money, a trip, a treat, or the thing you want. Write the whole deal in one line.</p>
+        <p class="promise">You pay for it.<br>We only keep the score.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5 JUST YOU -->
+  <section class="block private" id="privacy" data-theme="private">
+    <div class="orb o1"></div>
+    <div class="wrap">
+      <div class="stage reveal">
+        <div class="phone small whitephone" role="img" aria-label="wonday privacy screen: no sign-up, no account, no server, read only">
+          <div class="notch"></div>
+          <div class="screen white">
+            <div class="lock" id="privLock">🔒</div>
+            <div class="just">Just you.</div>
+            <ul class="privlist" id="privList">
+              <li><i>✓</i><div><b>No sign-up</b><span>Open the app and start.</span></div></li>
+              <li><i>✓</i><div><b>No account</b><span>No email. No password.</span></div></li>
+              <li><i>✓</i><div><b>No server</b><span>Never sent to us.</span></div></li>
+              <li><i>✓</i><div><b>Read only</b><span>We never write to Apple Health.</span></div></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="copy reveal">
+        <p class="kicker">Private</p>
+        <h2>Just you.</h2>
+        <p class="sub">No sign-up. No account. No server. Your goals, rewards and health data stay on your iPhone.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6 STORY: why wonday exists -->
+  <section class="block story" id="story" data-theme="story">
+    <div class="orb o1"></div>
+    <div class="wrap">
+      <div class="copy reveal">
+        <p class="kicker">Why wonday exists</p>
+        <h2>He missed on the very first <span class="daymorph" id="dayMorphTitle" role="img" aria-label="Monday became wonday"><span class="dm-a" aria-hidden="true">Monday.</span><span class="dm-b" aria-hidden="true">w<span class="ring-o-brand"></span>nday.</span></span></h2>
+        <p class="sub"><a href="https://www.linkedin.com/in/paulkranti/">My husband</a> wanted a <span class="prize">DGX Spark</span> worth <span class="prize">₹7,00,000</span>.</p>
+        <p class="sub">Not bought &mdash; earned. Every step toward it would also make him healthier.</p>
+        <ul class="dealchips" aria-label="The challenge: 10,000 steps a day, 10,000 rupees per win, need 70 wins in 90 days">
+          <li><b>10,000</b><span>steps a day</span></li>
+          <li><b>₹10,000</b><span>per win</span></li>
+          <li><b>70 wins</b><span>in 90 days</span></li>
+        </ul>
+        <p class="sub">He started on a <span class="daymorph" id="dayMorph" role="img" aria-label="Monday became wonday"><span class="dm-a" aria-hidden="true">Monday</span><span class="dm-b" aria-hidden="true">w<span class="ring-o-brand"></span>nday</span></span> and failed on the very first day.</p>
+        <p class="sub">So I built <span class="wordmark" role="img" aria-label="wonday"><span aria-hidden="true">w<span class="ring-o-brand"></span>nday</span></span> &mdash; for what I want for him: win every day.</p>
+        <p class="sig">&mdash; <a href="https://www.linkedin.com/in/nehilsrivastava/">Nehil</a>, for <a href="https://www.linkedin.com/in/paulkranti/">my husband</a> <span class="heart" aria-hidden="true">♥</span></p>
+      </div>
+      <div class="stage reveal storyside">
+        <figure class="storycard" role="img" aria-label="My husband's deal: walk 10,000 steps on 70 of 90 days to win a DGX Spark">
+          <p class="scard-kicker">My husband&rsquo;s deal</p>
+          <blockquote>I walk 10,000 steps on 70 of 90 days to win a DGX Spark worth ₹7,00,000.</blockquote>
+          <p class="scard-note">Day 1: missed. Day 2: started again.</p>
+        </figure>
+        <a class="storylink" href="https://www.linkedin.com/posts/paulkranti_i-want-to-gift-myself-a-dgx-spark-worth-700k-activity-7517528913028243456-nfIk" target="_blank" rel="noopener">Read my husband&rsquo;s challenge &rarr;</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7 FINAL -->
+  <section class="block final" id="final" data-theme="final">
+    <div class="orb o1"></div><div class="orb o2"></div>
+    <div class="center reveal">
+      <img class="final-icon" src="assets/wonday-icon.png" alt="wonday app icon" width="176" height="176" loading="lazy" decoding="async">
+      <h2>Reward yourself<br>for moving.</h2>
+      <p class="sub">Set the goal. Choose the reward. Win the day.</p>
+      <p class="promise">We only keep the score. You pay for your rewards.</p>
+      <a class="btn light final-btn" href="#" id="storeBtn"><span aria-hidden="true">↓</span> Download for iPhone</a>
+      <p class="chips">✓ No sign-up &nbsp;&nbsp; ✓ No account &nbsp;&nbsp; ✓ No server</p>
+      <footer>
+        <img class="brand-lockup" src="assets/wonday-lockup-dark.png" alt="wonday" width="220" height="73" loading="lazy" decoding="async">
+        <span class="flinks"><a href="privacy.html">Privacy Policy</a> <a href="help.html">Help</a> <a href="#top">Back to top ↑</a></span>
+        <span class="copyr">© 2026 wonday. Made for people who move.</span>
+        <span class="madeby">Made by <a href="https://www.linkedin.com/in/nehilsrivastava/">Nehil Srivastava</a> with <span class="heart" aria-hidden="true">♥</span> for <a href="https://www.linkedin.com/in/paulkranti/">Kranthi Paul</a> &mdash; to enable him to achieve his <a href="https://www.linkedin.com/posts/paulkranti_i-want-to-gift-myself-a-dgx-spark-worth-700k-activity-7517528913028243456-nfIk">goal</a>.</span>
+      </footer>
+    </div>
+  </section>
+
+</main>
+<script src="app.js"></script>
+</body>
+</html>

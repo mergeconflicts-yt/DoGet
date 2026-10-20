@@ -17,13 +17,16 @@ public enum Mapping {
         var results: [DayResult] = []
         var best = 0.0
         var d = challenge.start
+        let yesterday = today.adding(days: -1)
         while d <= today {
             let h = metricDays[d.key] ?? 0
             let u = manualLogs[d.key]
             let value = max(h, u ?? 0)
-            let manual = u != nil && u! >= h
+            let manual = (u ?? 0) >= h
             let src: DataSource = manual ? .manual : (metricSources[d.key] == "motion" ? .motion : .health)
-            let isFinal: Bool = finalDays.contains(d.key) || d < today
+            // DATABASE §5: a stored row decides; yesterday stays open until
+            // 03:00 (SPEC §11), so it is not final just because it is past.
+            let isFinal = finalDays.contains(d.key) || d < yesterday
             results.append(DayResult(date: d, value: value, source: src, isFinal: isFinal))
             best = max(best, value)
             if d == today { break }

@@ -2,13 +2,12 @@ import XCTest
 
 // Headless visual verification: drives the real app in the simulator and
 // attaches screenshots to the xcresult (extract with xcresulttool).
+@MainActor
 final class CreateFlowTests: XCTestCase {
     var app: XCUIApplication!
 
     override func setUp() {
         continueAfterFailure = false
-        app = XCUIApplication()
-        app.launch()
     }
 
     func tap(_ label: String, file: StaticString = #filePath, line: UInt = #line) {
@@ -25,24 +24,40 @@ final class CreateFlowTests: XCTestCase {
         add(a)
     }
 
+    /// Fresh install: five Wonday screens, then a real first challenge.
+    /// Returns to Overview so the Create flow can start there.
+    func completeOnboardingIfNeeded() {
+        guard app.buttons["Get started"].waitForExistence(timeout: 3) else { return }
+        tap("Get started")
+        XCTAssertTrue(app.buttons["Hold to walk"].waitForExistence(timeout: 4))
+        app.buttons["Hold to walk"].press(forDuration: 3.0)
+        XCTAssertTrue(app.staticTexts["REWARD UNLOCKED"].waitForExistence(timeout: 6))
+        sleep(2)
+        tap("Next") // Walk demo → Apple Health (no Skip in v1)
+        tap("Not now, I'll log manually")
+        tap("Not now") // notifications
+        XCTAssertTrue(app.buttons["Start this challenge"].waitForExistence(timeout: 8))
+        sleep(2) // let the You're set sequence finish
+        tap("Start this challenge")
+        XCTAssertTrue(app.buttons["All challenges"].waitForExistence(timeout: 5))
+        tap("All challenges")
+    }
+
     func test_createFlow() throws {
+        app = XCUIApplication()
+        app.launch()
         shot("01-launch")
-        // Fresh install starts onboarding; repeat runs land on Overview.
-        if app.buttons["Get started"].waitForExistence(timeout: 3) {
-            tap("Get started")
-            tap("Next") // deal
-            tap("Next") // trophy
-            tap("Next") // privacy
-            tap("Not now, I'll log by hand") // health → manual mode
-            tap("Not now") // notifications
-            tap("Explore the demo first") // you're set
-        }
-        shot("02-overview-empty")
+        completeOnboardingIfNeeded()
+        shot("02-overview")
         tap("New challenge") // bottom bar +
+        // Wait for the fullScreenCover to finish presenting: tapping while it
+        // is still sliding up can use a stale frame and dismiss the cover.
+        sleep(2)
         shot("03-create-empty")
         // C02: locked blank first → hint, no panel
         tap("your reward")
-        XCTAssertTrue(app.staticTexts["First set \"what you'll do\"."].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts.containing(
+            NSPredicate(format: "label BEGINSWITH 'First set'")).firstMatch.waitForExistence(timeout: 3))
         shot("04-create-hint")
         // What you'll do (settle: SwiftUI conditional insert needs a commit
         // before the first tap lands, or the tap is dropped)
@@ -78,30 +93,28 @@ final class CreateFlowTests: XCTestCase {
         XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label BEGINSWITH 'Day 1 of 30'")).firstMatch.waitForExistence(timeout: 5))
         shot("10-challenge-day1")
         // Back to overview via bottom bar
-        tap("Challenges")
+        tap("All challenges")
         shot("11-overview-band")
     }
 
     func test_debugWhatPanel() throws {
-        if app.buttons["Get started"].waitForExistence(timeout: 3) {
-            tap("Get started")
-            tap("Next"); tap("Next"); tap("Next")
-            tap("Not now, I'll log by hand")
-            tap("Not now")
-            tap("Explore the demo first")
-        }
+        app = XCUIApplication()
+        app.launch()
+        completeOnboardingIfNeeded()
         tap("New challenge")
+        sleep(2)
         tap("what you'll do")
-        print("HITTABLE Steps=\(app.buttons["Steps"].isHittable) Increase=\(app.buttons["Increase"].isHittable) Done=\(app.buttons["Done"].isHittable)")
-        // Airtight tap test: Increase must change TARGET text.
+        sleep(1)
+        // Airtight tap test: pick a metric first (nothing is pre-selected),
+        // then Increase must change the target stepper.
+        // FillStepper exposes value + unit as one button label.
+        tap("Steps")
         tap("Increase")
-        XCTAssertTrue(app.staticTexts["10,500 steps a day"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["10,500 steps a day"].waitForExistence(timeout: 3))
         // Done must mark blank 0: HowOften opens, main button counts down, pill appears.
         tap("Done")
         sleep(2)
-        print("AFTER-DONE flex=\(app.buttons["Flexible, X of Y days"].exists) twoBlanks=\(app.buttons["Fill in 2 blanks"].exists) pill=\(app.buttons["walk 10,000 steps"].exists) threeBlanks=\(app.buttons["Fill in 3 blanks"].exists)")
-        print("TREE-AFTER-DONE-START")
-        print(app.debugDescription)
-        print("TREE-AFTER-DONE-END")
+        XCTAssertTrue(app.buttons["Flexible, X of Y days"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["walk 10,500 steps"].exists)
     }
 }

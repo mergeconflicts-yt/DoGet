@@ -14,6 +14,9 @@ public final class HealthKitController {
     public static let shared = HealthKitController()
     private let store = HKHealthStore()
     private var observersRegistered = false
+    /// Set by RootView. Observer completion waits for this so HealthKit is not
+    /// told the update is done before the Evaluator has read it (review Medium).
+    public var onRefresh: (@MainActor () async -> Void)?
     private init() {}
 
     public static var isAvailable: Bool { HKHealthStore.isHealthDataAvailable() }
@@ -25,12 +28,13 @@ public final class HealthKitController {
                    .distanceWalkingRunning,
                    .activeEnergyBurned,
                    .basalEnergyBurned,
-                   .appleExerciseTime,
-                   .appleStandTime] as [HKQuantityTypeIdentifier] {
+                   .appleExerciseTime] as [HKQuantityTypeIdentifier] {
             if let q = HKObjectType.quantityType(forIdentifier: id) { t.insert(q) }
         }
         if let w = HKObjectType.workoutType() as HKObjectType? { t.insert(w) }
         if let s = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) { t.insert(s) }
+        // Stand hours are a category sample (one per hour), not a quantity.
+        if let s = HKObjectType.categoryType(forIdentifier: .appleStandHour) { t.insert(s) }
         t.insert(HKObjectType.activitySummaryType())
         return t
     }
@@ -80,10 +84,12 @@ public final class HealthKitController {
 
     private func addObserver(for type: HKQuantityType) {
         let q = HKObserverQuery(sampleType: type, predicate: nil) { _, completion, _ in
-            completion()
-            // Post on main: SwiftUI onReceive runs on the posting thread, and
-            // background delivery must never publish model updates off-main.
+            // Run the Evaluator first, then tell HealthKit we are done. iOS
+            // throttles or stops delivery if completion is called too early.
+            let done = SendableCompletion(completion)
             Task { @MainActor in
+                await HealthKitController.shared.onRefresh?()
+                done.run()
                 NotificationCenter.default.post(name: .fillHealthUpdate, object: nil)
             }
         }
@@ -92,8 +98,10 @@ public final class HealthKitController {
 
     private func addSampleObserver(for type: HKSampleType) {
         let q = HKObserverQuery(sampleType: type, predicate: nil) { _, completion, _ in
-            completion()
+            let done = SendableCompletion(completion)
             Task { @MainActor in
+                await HealthKitController.shared.onRefresh?()
+                done.run()
                 NotificationCenter.default.post(name: .fillHealthUpdate, object: nil)
             }
         }
@@ -101,17 +109,28 @@ public final class HealthKitController {
     }
 
     /// H05 — stand-hour samples in the last 7 days mean an Apple Watch.
+    /// (The old query used appleStandTime, a quantity the Watch does not
+    /// necessarily write; stand hours are category samples.)
     public func hasWatchData() async -> Bool {
         guard Self.isAvailable else { return false }
-        guard let q = HKQuantityType.quantityType(forIdentifier: .appleStandTime) else { return false }
+        guard let q = HKObjectType.categoryType(forIdentifier: .appleStandHour) else { return false }
         let end = Date()
         let start = Calendar.current.date(byAdding: .day, value: -7, to: end) ?? end
         return await withCheckedContinuation { cont in
-            let query = HKStatisticsQuery(quantityType: q,
-                quantitySamplePredicate: HKQuery.predicateForSamples(withStart: start, end: end, options: [])) { _, r, _ in
-                cont.resume(returning: (r?.sumQuantity()?.doubleValue(for: .hour()) ?? 0) > 0)
+            let p = HKQuery.predicateForSamples(withStart: start, end: end, options: [])
+            let query = HKSampleQuery(sampleType: q, predicate: p, limit: 1,
+                                      sortDescriptors: nil) { _, samples, _ in
+                cont.resume(returning: !(samples ?? []).isEmpty)
             }
             store.execute(query)
         }
     }
+}
+
+/// HealthKit's observer completion handler is not Sendable in the SDK yet,
+/// but it is safe to call once. This box lets us await the Evaluator on the
+/// main actor and then call it without a Swift 6 region-isolation error.
+private struct SendableCompletion: @unchecked Sendable {
+    let run: () -> Void
+    init(_ run: @escaping () -> Void) { self.run = run }
 }

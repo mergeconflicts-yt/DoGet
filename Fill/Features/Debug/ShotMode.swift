@@ -98,7 +98,7 @@ public enum ShotMode {
             seedFlex(repo, context, today, name: "First win", color: "green",
                      x: 20, y: 30, startOffset: -2, wins: 1, misses: 1, todayValue: 3_000)
         case "manual":
-            seedFlex(repo, context, today, name: "Logged by hand", color: "amber",
+            seedFlex(repo, context, today, name: "Logged manually", color: "amber",
                      x: 20, y: 30, startOffset: -2, wins: 1, misses: 1, todayValue: 3_000)
         case "half":
             seedFlex(repo, context, today, name: "Halfway there", color: "orange",
@@ -198,7 +198,7 @@ public struct ShotHost: View {
                                 "challenge-broken": "Broken streak",
                                 "challenge-claimed": "Trophy claimed",
                                 "challenge-once": "First 10K",
-                                "challenge-manual": "Logged by hand"][screen]
+                                "challenge-manual": "Logged manually"][screen]
                     if let p = pages.first(where: { $0.challenge.name == name }) {
                         ChallengePageView(challenge: p.challenge, snapshot: p.snapshot,
                                           dayStates: p.states,

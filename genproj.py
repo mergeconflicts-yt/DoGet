@@ -20,6 +20,7 @@ sources = [
     "Fill/DesignSystem/DesignSystem.swift",
     "Fill/DesignSystem/Components.swift",
     "Fill/DesignSystem/GelFill.swift",
+    "Fill/DesignSystem/Brand.swift",
     "Fill/Domain/Types.swift",
     "Fill/Domain/Engine.swift",
     "Fill/Domain/Derive.swift",
@@ -29,6 +30,7 @@ sources = [
     "Fill/Persistence/Models.swift",
     "Fill/Persistence/Mapping.swift",
     "Fill/Persistence/Repository.swift",
+    "Fill/Persistence/EvaluationEngine.swift",
     "Fill/Persistence/Seed.swift",
     "Fill/Persistence/StorePlan.swift",
     "Fill/Activity/ActivitySources.swift",
@@ -36,13 +38,18 @@ sources = [
     "Fill/Engagement/Engagement.swift",
     "Fill/Features/Overview/OverviewView.swift",
     "Fill/Features/ChallengePage/ChallengePageView.swift",
-    "Fill/Features/ChallengePage/ShareCard.swift",
     "Fill/Features/Pager/PagerView.swift",
     "Fill/Features/Pager/PageBuilder.swift",
     "Fill/Features/Create/CreateView.swift",
+    "Fill/Features/Create/CreateModel.swift",
     "Fill/Features/Celebration/MomentsViews.swift",
     "Fill/Features/Rescue/RescueView.swift",
     "Fill/Features/Onboarding/OnboardingView.swift",
+    "Fill/Features/Onboarding/WelcomePage.swift",
+    "Fill/Features/Onboarding/WalkToUnlockPage.swift",
+    "Fill/Features/Onboarding/HealthConnectPage.swift",
+    "Fill/Features/Onboarding/NotificationsPage.swift",
+    "Fill/Features/Onboarding/YoureSetPage.swift",
     "Fill/Features/Settings/SettingsViews.swift",
     "Fill/Features/Debug/ShotMode.swift",]
 test_sources = [
@@ -54,7 +61,8 @@ test_sources = [
     "Fill/Domain/CreateDraft.swift",
     "FillTests/DomainTests.swift",
 ]
-uitest_sources = ["FillUITests/CreateFlowTests.swift", "FillUITests/GelFillTests.swift", "FillUITests/RescueTests.swift"]
+uitest_sources = ["FillUITests/CreateFlowTests.swift", "FillUITests/GelFillTests.swift", "FillUITests/RescueTests.swift",
+                  "FillUITests/OnboardingTests.swift"]
 
 def uid(name: str) -> str:
     return hashlib.md5(name.encode()).hexdigest()[:24].upper()
@@ -130,12 +138,16 @@ for bf, s in zip(bf_test, test_sources):
 for bf, s in zip(bf_uitest, uitest_sources):
     add(bf, "PBXBuildFile", f"fileRef = {testrefs[s]}")
 
-# Resources (privacy manifest must ship in the bundle)
-resources = ["Fill/Resources/PrivacyInfo.xcprivacy"]
+# Resources (privacy manifest + app icon must ship in the bundle)
+resources = ["Fill/Resources/PrivacyInfo.xcprivacy", "Fill/Resources/Assets.xcassets"]
 resrefs = {}
 for s in resources:
     resrefs[s] = uid("res" + s)
-    add(resrefs[s], "PBXFileReference", f'path = "{s}"; sourceTree = "<group>"')
+    if s.endswith(".xcassets"):
+        add(resrefs[s], "PBXFileReference",
+            f'lastKnownFileType = folder.assetcatalog; path = "{s}"; sourceTree = "<group>"')
+    else:
+        add(resrefs[s], "PBXFileReference", f'path = "{s}"; sourceTree = "<group>"')
 bf_res = [uid("bfr" + s) for s in resources]
 for bf, s in zip(bf_res, resources):
     add(bf, "PBXBuildFile", f"fileRef = {resrefs[s]}")
@@ -177,6 +189,8 @@ add(proj_id, "PBXProject", f'buildConfigurationList = {cfglist_proj}; compatibil
 def cfg(ident, name, settings):
     add(ident, "XCBuildConfiguration", f'buildSettings = {{{settings}}}; name = {name}')
 common_app = ("ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES; "
+    "ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon; "
+    "ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor; "
     "CLANG_ENABLE_MODULES = YES; CODE_SIGN_STYLE = Automatic; "
     + team_setting +
     "CURRENT_PROJECT_VERSION = 1; INFOPLIST_FILE = Fill/Resources/Info.plist; "

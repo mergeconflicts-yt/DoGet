@@ -12,7 +12,7 @@ public struct ActivityPill: View {
     public var body: some View {
         let bg: Color = status == .danger ? FillColor.danger : FillColor.color(for: colorToken)
         HStack(spacing: 6) {
-            Image(systemName: FillMetricIcon.symbol(for: metric)).font(.system(size: 13, weight: .bold))
+            Image(systemName: FillMetricIcon.symbol(for: metric)).font(FillFont.scaled(13, weight: .bold))
             Text(text).font(FillFont.mono(11)).tracking(1.2)
         }
         .foregroundStyle(.white)
@@ -32,21 +32,21 @@ public struct BottomBar: View {
             Button(action: onAll) {
                 HStack(spacing: 6) {
                     Image(systemName: "square.grid.2x2")
-                    Text(pageLabel).font(.system(size: 14, weight: .semibold))
+                    Text(pageLabel).font(FillFont.scaled(14, weight: .semibold))
                 }
                 .foregroundStyle(.white)
                 .padding(.horizontal, 14).padding(.vertical, 12)
                 .background(FillColor.ink, in: Capsule())
             }
-            .accessibilityLabel("Challenges")
+            .accessibilityLabel(Copy.overviewAllChallenges)
             Spacer()
             Button(action: onAdd) {
-                Image(systemName: "plus").font(.system(size: 24, weight: .bold))
+                Image(systemName: "plus").font(FillFont.scaled(24, weight: .bold))
                     .foregroundStyle(.white)
                     .frame(width: 60, height: 60)
                     .background(FillColor.ink, in: Circle())
             }
-            .accessibilityLabel("New challenge")
+            .accessibilityLabel(Copy.newChallengeLabel)
         }
         .padding(.horizontal, 20).padding(.bottom, 26)
     }
@@ -73,8 +73,13 @@ public struct DayBars: View {
     @ViewBuilder private func bar(_ i: Int) -> some View {
         let c = FillColor.color(for: colorToken)
         if wins.contains(i) {
-            RoundedRectangle(cornerRadius: 3).fill(manualWins.contains(i) ? c.opacity(0.55) : c)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            if manualWins.contains(i) {
+                ManualBar(color: c)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                RoundedRectangle(cornerRadius: 3).fill(c)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
         } else if misses.contains(i) {
             VStack { Spacer(); RoundedRectangle(cornerRadius: 3).fill(FillColor.danger.opacity(0.75)).frame(maxWidth: .infinity, maxHeight: 10) }
         } else if todayIndex == i {
@@ -91,15 +96,40 @@ public struct DayBars: View {
     }
 }
 
+// Manual wins are striped (SPEC §9), not a flat tint.
+struct ManualBar: View {
+    var color: Color
+    var body: some View {
+        Canvas { ctx, size in
+            let rect = CGRect(origin: .zero, size: size)
+            let shape = Path(roundedRect: rect, cornerRadius: 3)
+            ctx.clip(to: shape)
+            ctx.fill(Path(rect), with: .color(color))
+            var stripe = Path()
+            let period: CGFloat = 6
+            var x = -size.height
+            while x < size.width {
+                stripe.move(to: CGPoint(x: x, y: 0))
+                stripe.addLine(to: CGPoint(x: x + size.height, y: size.height))
+                x += period
+            }
+            ctx.stroke(stripe, with: .color(.white.opacity(0.55)), lineWidth: 2)
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+}
+
 // Toast: ink, radius 16, slides up, 2.6s (caller handles timing).
 public struct Toast: View {
     var text: String
     public var body: some View {
-        Text(text).font(.system(size: 14, weight: .semibold)).foregroundStyle(.white)
+        Text(text).font(FillFont.scaled(14, weight: .semibold)).foregroundStyle(.white)
             .padding(.horizontal, 16).padding(.vertical, 12)
             .background(FillColor.ink, in: RoundedRectangle(cornerRadius: 16))
             .padding(.bottom, 100)
             .accessibilityLabel(text)
+            .allowsHitTesting(false)
     }
 }
 
@@ -121,15 +151,15 @@ public struct FillStepper: View {
     public var body: some View {
         HStack(spacing: 10) {
             Button(action: { typed = ""; endTyping(); onMinus() }) {
-                Image(systemName: "minus").font(.system(size: 20, weight: .bold))
+                Image(systemName: "minus").font(FillFont.scaled(20, weight: .bold))
                     .frame(width: 48, height: 48).background(.white, in: RoundedRectangle(cornerRadius: 12))
-            }.accessibilityLabel("Decrease")
+            }.accessibilityLabel(Copy.decrease)
             valueField()
                 .frame(maxWidth: .infinity)
             Button(action: { typed = ""; endTyping(); onPlus() }) {
-                Image(systemName: "plus").font(.system(size: 20, weight: .bold))
+                Image(systemName: "plus").font(FillFont.scaled(20, weight: .bold))
                     .frame(width: 48, height: 48).background(.white, in: RoundedRectangle(cornerRadius: 12))
-            }.accessibilityLabel("Increase")
+            }.accessibilityLabel(Copy.increase)
         }
         .padding(10)
         .background(FillColor.chipBg, in: RoundedRectangle(cornerRadius: 20))
@@ -141,7 +171,7 @@ public struct FillStepper: View {
             TextField(value, text: $typed)
                 .keyboardType(.decimalPad)
                 .focused($focused)
-                .font(.system(size: 30, weight: .heavy))
+                .font(FillFont.scaled(30, weight: .heavy))
                 .foregroundStyle(FillColor.color(for: colorToken))
                 .multilineTextAlignment(.center)
                 .monospacedDigit()
@@ -160,12 +190,12 @@ public struct FillStepper: View {
                 focused = true
             } label: {
                 VStack(spacing: 0) {
-                    Text(value).font(.system(size: 30, weight: .heavy))
+                    Text(value).font(FillFont.scaled(30, weight: .heavy))
                         .foregroundStyle(FillColor.color(for: colorToken))
                         .monospacedDigit()
                         .minimumScaleFactor(0.6).lineLimit(1)
                     if !unit.isEmpty {
-                        Text(unit).font(.system(size: 13, weight: .semibold))
+                        Text(unit).font(FillFont.scaled(13, weight: .semibold))
                             .foregroundStyle(FillColor.text2)
                             .lineLimit(1).minimumScaleFactor(0.7)
                     }
@@ -198,8 +228,8 @@ public struct Tile: View {
     public var body: some View {
         Button(action: action) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.system(size: 16, weight: .bold))
-                Text(sub).font(.system(size: 13, weight: .medium))
+                Text(title).font(FillFont.scaled(16, weight: .bold))
+                Text(sub).font(FillFont.scaled(13, weight: .medium))
                     .foregroundStyle(selected ? .white.opacity(0.85) : FillColor.text2)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -222,7 +252,7 @@ public struct PresetChips: View {
         HStack(spacing: 8) {
             ForEach(Array(labels.enumerated()), id: \.offset) { i, l in
                 Button(l) { action(i) }
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(FillFont.scaled(14, weight: .semibold))
                     .lineLimit(1).minimumScaleFactor(0.7)
                     .foregroundStyle(selectedIndex == i ? .white : FillColor.ink)
                     .padding(.horizontal, 16).padding(.vertical, 10)
@@ -240,7 +270,7 @@ public struct Chip: View {
     var selected: Bool
     var colorToken: String
     public var body: some View {
-        Text(text).font(.system(size: 14, weight: .semibold))
+        Text(text).font(FillFont.scaled(14, weight: .semibold))
             .lineLimit(1).minimumScaleFactor(0.7)
             .foregroundStyle(selected ? .white : FillColor.ink)
             .padding(.horizontal, 16).padding(.vertical, 12)

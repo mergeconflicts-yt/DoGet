@@ -11,7 +11,9 @@ public struct LogTodayView: View {
     @Environment(\.modelContext) private var context
     @Environment(AppState.self) private var app
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var value: Double = 0
+    @State private var loaded = false
 
     public var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -26,28 +28,36 @@ public struct LogTodayView: View {
                 onPlus: { value += step() },
                 onSet: { v in value = max(0, v) })
             HStack(spacing: 8) {
-                logChip("50%") { value = (target * 0.5).rounded(.up) }
-                logChip("80%") { value = (target * 0.8).rounded(.up) }
-                logChip("Goal reached ✓", selected: value >= target) { value = target }
+                logChip(Copy.half) { value = (target * 0.5).rounded(.up) }
+                logChip(Copy.eighty) { value = (target * 0.8).rounded(.up) }
+                logChip(Copy.goalReached, selected: value >= target) { value = target }
             }
-            Text("Be honest — this is your own challenge.")
-                .font(.system(size: 14)).foregroundStyle(FillColor.text2)
-            Button("Connect Apple Health instead") { connectHealth() }
-                .font(.system(size: 15, weight: .semibold))
-                .accessibilityLabel("Connect Apple Health instead")
-            Button("Save") { save() }
-                .font(.system(size: 17, weight: .bold)).foregroundStyle(.white)
+            Text(Copy.honest)
+                .font(FillFont.scaled(14)).foregroundStyle(FillColor.text2)
+            Button(Copy.connectInstead) { connectHealth() }
+                .font(FillFont.scaled(15, weight: .semibold))
+                .accessibilityLabel(Copy.connectInstead)
+            Button(Copy.save) { save() }
+                .font(FillFont.scaled(17, weight: .bold)).foregroundStyle(.white)
                 .frame(maxWidth: .infinity).frame(height: 56)
                 .background(FillColor.ink, in: Capsule())
-                .accessibilityLabel("Save")
+                .accessibilityLabel(Copy.save)
             Spacer(minLength: 0)
         }
         .padding(20)
-        .background(.white, in: RoundedRectangle(cornerRadius: 30))
+        .background(FillColor.surface, in: RoundedRectangle(cornerRadius: 30))
+        .onAppear {
+            guard !loaded else { return }
+            loaded = true
+            let today = DayKey.from(date: app.now, calendar: .current)
+            let rows = (try? context.fetch(FetchDescriptor<ManualLog>(
+                predicate: #Predicate { $0.metricRaw == metric.rawValue && $0.dayKey == today.key }))) ?? []
+            value = rows.first?.value ?? 0
+        }
     }
     private func logChip(_ text: String, selected: Bool = false, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Text(text).font(.system(size: 14, weight: .semibold))
+            Text(text).font(FillFont.scaled(14, weight: .semibold))
                 .foregroundStyle(selected ? .white : FillColor.ink)
                 .padding(.horizontal, 16).padding(.vertical, 10)
                 .background(selected ? FillColor.color(for: colorToken) : FillColor.chipBg,
@@ -65,12 +75,39 @@ public struct LogTodayView: View {
         }
     }
     private func save() {
-        let today = DayKey.from(date: Date(), calendar: .current)
+        let today = DayKey.from(date: app.now, calendar: .current)
+        // Capture what the user saw before this save so a win that happens
+        // *because* of this manual log still shows Day won (SPEC §7.9/M02).
+        let before = PageBuilder.build(context: context, now: app.now)
+            .filter { $0.challenge.metric == metric }
+        let beforeByID = Dictionary(uniqueKeysWithValues: before.map {
+            ($0.challenge.id, $0.snapshot.todayWon)
+        })
         // D02/M03: sets today's total, never lowers (Repository upsert).
-        Repository(context: context).upsertManualLog(metric: metric.rawValue, dayKey: today.key, value: value)
+        Repository(context: context).upsertManualLog(metric: metric.rawValue,
+                                                     dayKey: today.key, value: value)
+        let after = PageBuilder.build(context: context, now: app.now)
+            .filter { $0.challenge.metric == metric }
+        let newWins = after.filter { p in
+            p.snapshot.todayWon && !(beforeByID[p.challenge.id] ?? false)
+        }
         app.showToast(Copy.saved)
-        Task { await Evaluator.shared.refresh(context: context, app: app, now: app.now) } // IMPLEMENTATION §6
         dismiss()
+        Task { @MainActor in
+            await Evaluator.shared.refresh(context: context, app: app, now: app.now)
+            app.dataVersion += 1
+            guard let p = newWins.first else { return }
+            let kind = EvaluationEngine.ledgerKind(p.challenge)
+            let amount = kind == "itemSaving" ? p.snapshot.perWin : p.challenge.reward.amount
+            app.showDayWon(name: p.challenge.name,
+                           amount: EvaluationEngine.dayWonText(p.challenge, amount: amount),
+                           wins: p.snapshot.wins)
+            if p.snapshot.done {
+                let id = p.challenge.id
+                try? await Task.sleep(for: .seconds(2.3))
+                app.celebrating = id
+            }
+        }
     }
     /// M04: Health prompt / Settings path; manual mode off on success.
     private func connectHealth() {
@@ -95,9 +132,9 @@ public struct DayWonView: View {
             FillColor.color(for: colorToken).ignoresSafeArea()
             VStack(spacing: 8) {
                 Text(Copy.dayWon).font(FillFont.mono(14)).tracking(1.6).foregroundStyle(.white)
-                Text(amountText).font(.system(size: 72, weight: .heavy)).monospacedDigit()
+                Text(amountText).font(FillFont.scaled(72, weight: .heavy)).monospacedDigit()
                     .foregroundStyle(.white).minimumScaleFactor(0.6).lineLimit(1)
-                Text(subText).font(.system(size: 18, weight: .medium)).foregroundStyle(.white)
+                Text(subText).font(FillFont.scaled(18, weight: .medium)).foregroundStyle(.white)
             }
             .padding(.horizontal, 24)
         }
@@ -119,6 +156,7 @@ public struct CelebrationView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var claimed = false
+    @State private var leveledUp = false
     @State private var countUp: Double = 0
     @State private var trophyShown = false
 
@@ -135,21 +173,33 @@ public struct CelebrationView: View {
                     .opacity(trophyShown || reduceMotion ? 1 : 0)
                 Text(rewardText()).font(FillFont.celebrateValue).monospacedDigit()
                     .foregroundStyle(.white).minimumScaleFactor(0.5).lineLimit(1)
-                Text(Copy.isYours).font(.system(size: 17, weight: .medium)).foregroundStyle(.white)
+                Text(Copy.isYours).font(FillFont.scaled(17, weight: .medium)).foregroundStyle(.white)
                 stats
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(FillFont.scaled(13, weight: .semibold))
                     .foregroundStyle(.white.opacity(0.8))
-                Button(claimed ? Copy.rewardedCheck : Copy.claimReward) { claim() }
-                    .font(.system(size: 17, weight: .bold))
-                    .foregroundStyle(claimed ? FillColor.success : FillColor.ink)
+                Button(isClaimed ? Copy.rewardedCheck : Copy.claimReward) { claim() }
+                    .font(FillFont.scaled(17, weight: .bold))
+                    .foregroundStyle(isClaimed ? FillColor.success : FillColor.ink)
                     .frame(maxWidth: .infinity).frame(height: 60)
                     .background(.white, in: Capsule())
-                    .accessibilityLabel(claimed ? Copy.rewardedCheck : Copy.claimReward)
+                    .disabled(isClaimed)
+                    .accessibilityLabel(isClaimed ? Copy.rewardedCheck : Copy.claimReward)
+                if let next = levelUp {
+                    Button(levelUpText(next)) { startLevel(next) }
+                        .font(FillFont.scaled(16, weight: .bold))
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity).frame(height: 56)
+                        .background(.white.opacity(0.2), in: Capsule())
+                        .overlay(Capsule().stroke(.white, lineWidth: 1.5))
+                        .disabled(leveledUp)
+                        .accessibilityLabel(levelUpText(next))
+                }
             }
             .padding(.horizontal, 24).padding(.bottom, 24)
         }
         .sensoryFeedback(trigger: claimed) { _, _ in .success }
         .sensoryFeedback(.impact(weight: .light), trigger: trophyShown)
+        .onAppear { claimed = challenge.claimed }
         .task {
             // DESIGN §6: trophy pop after 0.55s; count-up 1.1s ease-out.
             if reduceMotion {
@@ -162,14 +212,16 @@ public struct CelebrationView: View {
         }
     }
 
-    // Trophy: number + unit, challenge name as ring text around it.
+    private var isClaimed: Bool { claimed || challenge.claimed }
+
+    // Trophy: number + unit, name · type · date as ring text around it.
     private var trophy: some View {
         let n = displayCount
         return ZStack {
-            RingText(text: challenge.name.uppercased(), radius: 96)
+            RingText(text: ringText.uppercased(), radius: 96)
                 .foregroundStyle(.white.opacity(0.8))
             VStack(spacing: 2) {
-                Text(n).font(.system(size: 60, weight: .heavy)).monospacedDigit()
+                Text(n).font(FillFont.scaled(60, weight: .heavy)).monospacedDigit()
                     .foregroundStyle(.white).minimumScaleFactor(0.5).lineLimit(1)
                 Text(trophyUnit).font(FillFont.mono(12)).tracking(1.2)
                     .foregroundStyle(.white.opacity(0.85))
@@ -178,6 +230,10 @@ public struct CelebrationView: View {
         .frame(width: 220, height: 220)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(n) \(trophyUnit)")
+    }
+    private var ringText: String {
+        Copy.ringText(challenge.name, Derive.typeName(challenge.type),
+                      Format.date(snapshot.endDate ?? challenge.start))
     }
     private var displayCount: String {
         switch challenge.type {
@@ -194,25 +250,35 @@ public struct CelebrationView: View {
     }
     private var trophyUnit: String {
         switch challenge.type {
-        case .flex: return "WINS"
-        case .streak: return "DAYS"
+        case .flex: return Copy.unitWins
+        case .streak: return Copy.unitInARow
         case .once: return MetricDefaults.unit(for: challenge.metric).uppercased()
         case .open:
-            if challenge.reward.kind == .money, challenge.reward.payout == .jar { return "SAVED" }
-            return "WINS"
+            if challenge.reward.kind == .money, challenge.reward.payout == .jar { return Copy.unitSaved }
+            return Copy.unitWins
         }
     }
-    private var stats: Text? {
+    private var stats: Text {
         switch challenge.type {
-        case .flex, .streak:
-            return Text("WINS \(snapshot.wins) · DAYS \(snapshot.dayIndex + 1) · MISSES \(snapshot.misses)")
+        case .flex:
+            return Text(Copy.statsFlex(wins: snapshot.wins, misses: snapshot.misses,
+                                       days: snapshot.dayIndex + 1))
+        case .streak:
+            return Text(Copy.statsStreak(challenge.x))
         case .once:
-            return Text("BEST \(Format.metric(snapshot.best, metric: challenge.metric)) \(MetricDefaults.unit(for: challenge.metric))")
+            return Text(Copy.statsOnce(Format.metric(challenge.target, metric: challenge.metric),
+                                       MetricDefaults.unit(for: challenge.metric),
+                                       run: challenge.metric == .run))
         case .open:
             if challenge.reward.kind == .money, challenge.reward.payout == .jar {
-                return Text("WINS \(snapshot.wins) · JAR \(Format.money(challenge.reward.jarTarget, currency: challenge.reward.currency))")
+                return Text(Copy.statsJar(snapshot.wins,
+                    Format.money(challenge.reward.jarTarget, currency: challenge.reward.currency)))
             }
-            return Text("WINS \(snapshot.wins)")
+            if challenge.reward.kind == .money {
+                return Text(Copy.statsOpenEach(snapshot.wins,
+                    Format.money(snapshot.moneyEarned, currency: challenge.reward.currency)))
+            }
+            return Text(Copy.statsOpenItem(snapshot.wins, challenge.reward.name))
         }
     }
     private func rewardText() -> String {
@@ -227,14 +293,37 @@ public struct CelebrationView: View {
         return r.value > 0 ? "\(r.name) · \(Format.money(r.value, currency: r.currency))" : r.name
     }
 
+    /// SPEC §6: offered only when Derive.levelUp returns a challenge.
+    private var levelUp: Challenge? {
+        Derive.levelUp(challenge, today: DayKey.from(date: app.now, calendar: .current))
+    }
+    private func levelUpText(_ next: Challenge) -> String {
+        Copy.levelUpButton(Format.metric(next.target, metric: next.metric),
+                           MetricDefaults.unit(for: next.metric))
+    }
+    private func startLevel(_ next: Challenge) {
+        guard !leveledUp else { return }
+        leveledUp = true
+        Repository(context: context).insertChallenge(next, parentID: challenge.id)
+        app.dataVersion += 1
+        app.selectNewChallenge = true
+        dismiss()
+        app.showToast(Copy.levelUpToast(next.level,
+                                        Format.metric(next.target, metric: next.metric),
+                                        MetricDefaults.unit(for: next.metric)))
+    }
+
     private func claim() {
+        guard !isClaimed else { return }
         let id = challenge.id
         if let r = (try? context.fetch(FetchDescriptor<ChallengeRecord>(
             predicate: #Predicate { $0.id == id })))?.first {
+            guard r.claimedAt == nil else { claimed = true; return }
             r.claimedAt = Date()
             // DATABASE §4.2 — Claim reward always writes exactly one `final`.
             let reward = challenge.reward
             let amount: Decimal = {
+                if reward.kind == .item { return 0 }
                 switch reward.payout {
                 case .each: return 0
                 case .bonus: return reward.bonus
@@ -245,7 +334,7 @@ public struct CelebrationView: View {
             Repository(context: context).insertRewardEntry(
                 challengeID: id, kind: "final",
                 dayKey: DayKey.from(date: Date(), calendar: .current).key,
-                amount: reward.kind == .money ? amount : 0,
+                amount: amount,
                 itemValue: reward.kind == .item ? reward.value : 0,
                 currency: reward.currency,
                 challengeName: challenge.name, colorToken: challenge.colorToken,
@@ -254,10 +343,11 @@ public struct CelebrationView: View {
         }
         claimed = true
         app.dataVersion += 1
+        let toast = Copy.claimToast(rewardText())
         Task { @MainActor in
             try? await Task.sleep(for: .seconds(0.9)) // SPEC §7.5
             dismiss()
-            app.showToast("Reward claimed.")
+            app.showToast(toast)
         }
     }
 }
@@ -273,7 +363,7 @@ struct RingText: View {
         return ZStack {
             ForEach(chars, id: \.offset) { i, ch in
                 Text(String(ch))
-                    .font(.system(size: fontSize, weight: .bold))
+                    .font(FillFont.scaled(fontSize, weight: .bold))
                     .rotationEffect(.degrees(360 * Double(i) / Double(count)))
                     .offset(y: -radius)
                     .rotationEffect(.degrees(-90))
@@ -305,7 +395,7 @@ struct ConfettiView: View {
             Canvas { ctx, size in
                 let t = timeline.date.timeIntervalSince(start)
                 let c = FillColor.color(for: colorToken)
-                let colors: [Color] = [.white, FillColor.ink, Color(red: 1.0, green: 0.83, blue: 0.0), c]
+                let colors: [Color] = [.white, FillColor.ink, FillColor.confettiYellow, c]
                 for p in pieces {
                     let y = (p.y + p.vy * min(t, 3.4)) * size.height
                     guard y < size.height + 10, t < 3.4 else { continue }

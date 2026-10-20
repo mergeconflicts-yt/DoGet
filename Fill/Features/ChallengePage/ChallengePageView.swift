@@ -11,14 +11,11 @@ public struct ChallengePageView: View {
     var snapshot: Snapshot
     var dayStates: [DayState] = [] // parallel to window, oldest-first
     var manualMode: Bool = false
-    /// Offscreen snapshots render with this false so their .task never
-    /// re-renders (would recurse forever).
-    var shareEnabled: Bool = true
     @Environment(AppState.self) private var app
     @Environment(\.modelContext) private var context
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var bandPulse = true
-    @State private var shareImage: UIImage?
+    @State private var logRing = false
 
     public enum DayState: Equatable { case won(manual: Bool), missed, today(ratio: Double), future }
 
@@ -39,7 +36,7 @@ public struct ChallengePageView: View {
                     Text(challenge.name).font(FillFont.pageTitle)
                         .padding(.horizontal, 20).padding(.top, 4)
                         .accessibilityAddTraits(.isHeader)
-                    Text(ruleLine()).font(.system(size: 13, weight: .bold))
+                    Text(ruleLine()).font(FillFont.scaled(13, weight: .bold))
                         .foregroundStyle(FillColor.text3)
                         .padding(.horizontal, 20).padding(.top, 2)
                     if challenge.type != .once {
@@ -68,20 +65,22 @@ public struct ChallengePageView: View {
                         .padding(.horizontal, 20)
                         .padding(.bottom, heroBottom(fh: fh, scale: scale))
                 }
-                if showTodayPill {
-                    Group {
-                        if manualMode {
-                            Button(action: openLogToday) {
-                                todayPill(floating: controlsAboveFill)
-                            }
-                            .buttonStyle(.plain)
-                        } else {
-                            todayPill(floating: controlsAboveFill)
-                        }
+                if showLogButton {
+                    Button(action: openLogToday) {
+                        logTodayButton(scale: scale)
                     }
-                    .padding(.bottom, controlsAboveFill ? fh + 8 * scale : max(0, fb + lh / 2 - 12))
-                    .padding(.trailing, 20)
-                    .frame(maxWidth: .infinity, alignment: .trailing)
+                    .buttonStyle(.plain)
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, max(0, fb + lh / 2 - 28 * scale))
+                    .accessibilityLabel(Copy.logToday + ", " +
+                        Copy.logValue(Format.metric(snapshot.todayValue, metric: challenge.metric),
+                                      Format.metric(challenge.target, metric: challenge.metric)) +
+                        " \(MetricDefaults.unit(for: challenge.metric))")
+                } else if showTodayPill {
+                    todayPill()
+                        .padding(.bottom, max(0, fb + lh / 2 - 12 * scale))
+                        .padding(.trailing, 20)
+                        .frame(maxWidth: .infinity, alignment: .trailing)
                 }
                 footer
                     .padding(.horizontal, 20).padding(.bottom, 112 * scale)
@@ -106,83 +105,52 @@ public struct ChallengePageView: View {
                          colorToken: challenge.colorToken,
                          status: snapshot.outOfReach || snapshot.streakBroken ? .danger : .normal)
             Spacer()
-            Text(dayText()).font(.system(size: 13, weight: .semibold))
+            Text(dayText()).font(FillFont.mono(13))
                 .foregroundStyle(FillColor.text3)
                 .accessibilityLabel(dayText())
-            if let img = shareImage {
-                ShareLink(item: ShareImage(image: img),
-                          message: Text(shareMessage()),
-                          preview: SharePreview(challenge.name, image: Image(uiImage: img))) {
-                    Image(systemName: "square.and.arrow.up")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(FillColor.text3)
-                        .frame(width: 44, height: 44)
-                }
-                .accessibilityLabel(Copy.shareProgress)
-            }
         }.padding(.horizontal, 20)
-        .task(id: shareVersion) {
-            guard shareEnabled else { return }
-            shareImage = ShareContent.renderImage(
-                challenge: challenge, snapshot: snapshot,
-                dayStates: dayStates, manualMode: manualMode)
-        }
-    }
-    /// Re-render the card whenever visible progress changes.
-    private var shareVersion: String {
-        "\(snapshot.wins)-\(snapshot.todayValue)-\(snapshot.done)-\(challenge.claimed)-\(snapshot.moneyEarned)-\(snapshot.todayWon)-\(challenge.colorToken)"
-    }
-    /// Caption + progress + link (link only once Copy.appStoreLink is real).
-    private func shareMessage() -> String {
-        var m = "\(Copy.shareCaption)\n\(challenge.name) — \(pillText())\n\(heroNumber()) \(heroUnit()). \(heroLine())\n\(Copy.playingFor) \(maxRewardText()). \(Copy.viaFill)"
-        if let url = URL(string: Copy.appStoreLink),
-           url.scheme == "http" || url.scheme == "https" {
-            m += "\n\(url.absoluteString)"
-        }
-        return m
     }
     private func pillText() -> String {
         if snapshot.outOfReach { return Copy.outOfReach }
         if snapshot.streakBroken { return Copy.streakBroken }
         if snapshot.done { return challenge.claimed ? Copy.rewarded : Copy.completed }
         switch challenge.metric {
-        case .steps: return "\(Format.int(Int(challenge.target))) STEPS"
-        case .rings: return "\(Int(challenge.target)) RINGS"
-        case .exercise: return "\(Int(challenge.target)) MIN EXERCISE"
-        case .run: return "\(Format.metric(challenge.target, metric: .run)) KM RUN"
-        case .sleep: return "\(Format.metric(challenge.target, metric: .sleep)) H SLEEP"
-        case .calories: return "\(Int(challenge.target)) KCAL"
+        case .steps: return Copy.pillSteps(Format.int(Int(challenge.target)))
+        case .rings: return Copy.pillRings("\(Int(challenge.target))")
+        case .exercise: return Copy.pillExercise("\(Int(challenge.target))")
+        case .run: return Copy.pillRun(Format.metric(challenge.target, metric: .run))
+        case .sleep: return Copy.pillSleep(Format.metric(challenge.target, metric: .sleep))
+        case .calories: return Copy.pillCalories("\(Int(challenge.target))")
         }
     }
     private func dayText() -> String {
         var t: String
-        switch challenge.type {
-        case .flex: t = "Day \(snapshot.dayIndex + 1) of \(challenge.y)"
-        case .streak: t = "Day \(snapshot.wins + 1) of \(challenge.x)"
-        case .once: t = "Any day"
-        case .open: t = "\(snapshot.wins) wins so far"
+        if challenge.claimed && snapshot.done {
+            t = Copy.claimed
+        } else if snapshot.done {
+            t = Derive.typeName(challenge.type) + Copy.finishedSuffix
+        } else {
+            switch challenge.type {
+            case .flex: t = Copy.dayFlex(snapshot.dayIndex + 1, of: challenge.y)
+            case .streak: t = Copy.dayStreak(snapshot.wins + 1, of: challenge.x)
+            case .once: t = Copy.anyDay
+            case .open: t = Copy.dayOpen(snapshot.wins)
+            }
         }
-        if snapshot.done { t = "\(typeName()) · finished" }
-        else if challenge.claimed { t = Copy.rewarded }
         if manualMode { t += " \(Copy.byHandShort)" }
         return t
     }
-    private func typeName() -> String {
-        switch challenge.type {
-        case .flex: return "Flexible"; case .streak: return "Streak"
-        case .once: return "One time"; case .open: return "No end"
-        }
-    }
     private func ruleLine() -> String {
         switch challenge.type {
-        case .flex: return "Flexible · \(challenge.x) of \(challenge.y) days"
-        case .streak: return "Streak · \(challenge.x) days in a row"
-        case .once: return "One time · \(Format.metric(challenge.target, metric: challenge.metric)) \(challenge.metric.rawValue)"
+        case .flex: return Copy.ruleFlex(challenge.x, challenge.y)
+        case .streak: return Copy.ruleStreak(challenge.x)
+        case .once: return Copy.ruleOnce
         case .open:
             if challenge.reward.kind == .money, challenge.reward.payout == .jar {
-                return "No end · jar opens at \(Format.money(challenge.reward.jarTarget))"
+                return Copy.ruleJar(Format.money(challenge.reward.jarTarget,
+                                                 currency: challenge.reward.currency))
             }
-            return "No end · until you stop"
+            return Copy.ruleOpen
         }
     }
 
@@ -207,8 +175,12 @@ public struct ChallengePageView: View {
         let r = challenge.reward
         if r.kind == .money {
             switch r.payout {
-            case .each: return "\(Format.money(r.amount * Decimal(challenge.x), currency: r.currency))"
-            case .bonus: return "\(Format.money(r.amount * Decimal(challenge.x) + r.bonus, currency: r.currency))"
+            case .each:
+                if challenge.type == .open {
+                    return Copy.goalNoEndEach(Format.money(r.amount, currency: r.currency))
+                }
+                return Format.money(r.amount * Decimal(challenge.x), currency: r.currency)
+            case .bonus: return Format.money(r.amount * Decimal(challenge.x) + r.bonus, currency: r.currency)
             case .end: return Format.money(r.amount, currency: r.currency)
             case .jar: return Format.money(r.jarTarget, currency: r.currency)
             }
@@ -218,14 +190,19 @@ public struct ChallengePageView: View {
     }
     private func goalRightText() -> String {
         if challenge.type == .flex, let e = snapshot.endDate { return Format.goalDate(e) }
-        if challenge.type == .streak { return snapshot.done ? "DONE" : (snapshot.endDate.map(Format.goalDate) ?? "") }
-        if challenge.reward.kind == .money, challenge.reward.payout == .jar { return "JAR OPENS" }
+        if challenge.type == .streak {
+            return snapshot.done ? Copy.goalStreakDone : (snapshot.endDate.map(Format.goalDate) ?? "")
+        }
+        if challenge.reward.kind == .money, challenge.reward.payout == .jar { return Copy.goalJar }
         return ""
     }
 
     // MARK: fill (gel base from the bottom + today band on top)
     private func fillStack(scale: CGFloat, fb: CGFloat, lh: CGFloat) -> some View {
         let c = FillColor.color(for: challenge.colorToken)
+        // DESIGN §5/§6: no wave under the today stripes or once the page is
+        // done; Reduce Motion makes the fill flat.
+        let wave = !snapshot.done && !snapshot.todayWon && snapshot.layer == 0
         return VStack(spacing: 0) {
             if lh > 0 {
                 ZStack(alignment: .top) {
@@ -233,7 +210,7 @@ public struct ChallengePageView: View {
                     c.frame(height: 2)
                 }.frame(height: lh)
             }
-            GelFill(color: c, animated: !reduceMotion)
+            GelFill(color: c, animated: !reduceMotion && wave, wave: wave)
                 .frame(height: max(0, fb))
                 .animation(reduceMotion ? nil : .timingCurve(0.3, 0.9, 0.3, 1, duration: 1.1), value: fb)
         }
@@ -245,26 +222,15 @@ public struct ChallengePageView: View {
     // the fill top, so no extra clearance for it.
     private func heroBottom(fh: CGFloat, scale: CGFloat) -> CGFloat {
         if heroInsideFill { return max(0, fh - 140 * scale) }
-        return fh + 8 * scale
+        // DESIGN §4: leave room for the today pill (+54) or the Log today
+        // button (+78) when the hero sits above the fill.
+        let clearance: CGFloat = showLogButton ? 78 : (showTodayPill ? 54 : 0)
+        return fh + (16 + clearance) * scale
     }
     private var heroInsideFill: Bool {
-        let scale: CGFloat = 1
         let fb = 196 + 384 * snapshot.base
         let lh = snapshot.layer > 0 ? max(30, 384 * snapshot.layer) : 0
-        // 340, not 420: above ~340 the floating hero no longer fits between
-        // the goal line and the fill top, so it moves inside instead.
-        return fb + lh >= 340 * scale
-    }
-
-    /// The today pill / Log button ride just above the fill top while the
-    /// hero is inside it (they would collide with it on the band); only
-    /// when there is room below the goal line, else they stay put.
-    private var controlsAboveFill: Bool {
-        guard heroInsideFill else { return false }
-        let scale: CGFloat = 1
-        let fb = 196 + 384 * snapshot.base
-        let lh = snapshot.layer > 0 ? max(30, 384 * snapshot.layer) : 0
-        return fb + lh + 38 * scale <= 522 * scale
+        return fb + lh >= 420 // DESIGN §4
     }
     private func heroBlock(inFill: Bool) -> some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -295,28 +261,43 @@ public struct ChallengePageView: View {
         switch challenge.type {
         case .flex: return "of \(challenge.x) wins"
         case .streak: return "of \(challenge.x) days"
-        case .once: return "of \(Format.metric(challenge.target, metric: challenge.metric)) \(challenge.metric.rawValue)"
+        case .once:
+            return "of \(Format.metric(challenge.target, metric: challenge.metric)) \(MetricDefaults.unit(for: challenge.metric))"
         case .open:
             if challenge.reward.kind == .money, challenge.reward.payout == .jar {
                 return "of \(Format.money(challenge.reward.jarTarget, currency: challenge.reward.currency))"
             }
-            return "earned"
+            if challenge.reward.kind == .money { return "earned" }
+            return "wins"
         }
     }
     private func heroLine() -> String {
         if snapshot.done {
-            if challenge.type == .streak { return "\(challenge.x) days in a row. Done." }
-            return "Done."
+            switch challenge.type {
+            case .flex: return Copy.heroFlexDone(challenge.x)
+            case .streak: return Copy.heroStreakDone(challenge.x)
+            case .once:
+                return Copy.heroOnceDone(
+                    target: Format.metric(challenge.target, metric: challenge.metric),
+                    unit: MetricDefaults.unit(for: challenge.metric),
+                    run: challenge.metric == .run)
+            case .open: return Copy.dayOpen(snapshot.wins)
+            }
         }
-        if snapshot.outOfReach { return "\(snapshot.need) wins needed, \(snapshot.daysLeft) days left" }
+        if snapshot.outOfReach {
+            return Copy.heroOutOfReach(need: snapshot.need, daysLeft: snapshot.daysLeft)
+        }
         if let broken = snapshot.streakBrokenOnDay { return Copy.brokenLine(broken) }
         switch challenge.type {
-        case .flex: return "\(snapshot.need) wins to go in \(snapshot.daysLeft) days"
-        case .streak: return "\(snapshot.need) days to go"
+        case .flex:
+            return Copy.heroFlexActive(need: snapshot.need, daysLeft: snapshot.daysLeft)
+        case .streak: return Copy.heroStreakActive(need: snapshot.need)
         case .once:
             let left = max(0, challenge.target - snapshot.best)
-            let noun = challenge.metric == .run ? "run" : "day"
-            return "\(Format.metric(left, metric: challenge.metric)) \(challenge.metric.rawValue) to go in one \(noun)"
+            return Copy.heroOnceActive(
+                left: Format.metric(left, metric: challenge.metric),
+                unit: MetricDefaults.unit(for: challenge.metric),
+                run: challenge.metric == .run)
         case .open:
             if challenge.reward.kind == .money, challenge.reward.payout == .jar {
                 let amount = (challenge.reward.amount as NSDecimalNumber).doubleValue
@@ -324,9 +305,11 @@ public struct ChallengePageView: View {
                 let saved = amount * Double(snapshot.wins)
                 let left = max(0, target - saved)
                 let winsNeeded = Int((left / max(amount, 1)).rounded(.up))
-                return "\(Format.money(Decimal(string: String(format: "%.0f", left)) ?? 0, currency: challenge.reward.currency)) to go in \(winsNeeded) wins"
+                let leftText = Format.money(Decimal(string: String(format: "%.0f", left)) ?? 0,
+                                            currency: challenge.reward.currency)
+                return Copy.heroJarLeft(leftText, wins: winsNeeded)
             }
-            return "keep going"
+            return Copy.dayOpen(snapshot.wins)
         }
     }
 
@@ -336,30 +319,56 @@ public struct ChallengePageView: View {
         challenge.type != .once && !snapshot.done && !snapshot.outOfReach
             && !snapshot.streakBroken
     }
-    private func todayPill(floating: Bool) -> some View {
+    /// SPEC §7.9: in manual mode the Log today button takes the band's place.
+    private var showLogButton: Bool { showTodayPill && manualMode && !snapshot.todayWon }
+    private func todayPill() -> some View {
         let text = todayPillText
         return Text(text)
             .font(FillFont.mono(10.5)).foregroundStyle(FillColor.color(for: challenge.colorToken))
             .padding(.horizontal, 12).padding(.vertical, 8)
-            .background(floating ? FillColor.tint(challenge.colorToken) : .white, in: Capsule())
+            .background(.white, in: Capsule())
             .accessibilityLabel(text)
     }
+    private func logTodayButton(scale: CGFloat) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: "pencil")
+                .font(FillFont.scaled(14, weight: .bold))
+            Text(Copy.logToday).font(FillFont.scaled(16, weight: .bold))
+            Text(Copy.logValue(Format.metric(snapshot.todayValue, metric: challenge.metric),
+                               Format.metric(challenge.target, metric: challenge.metric)))
+                .font(FillFont.mono(12))
+                .foregroundStyle(.white.opacity(0.8))
+        }
+        .foregroundStyle(.white)
+        .frame(maxWidth: .infinity)
+        .frame(height: 56 * scale)
+        .background(FillColor.ink, in: Capsule())
+        .overlay {
+            if !reduceMotion {
+                Capsule().stroke(FillColor.ink.opacity(0.35), lineWidth: 2)
+                    .scaleEffect(logRing ? 1.08 : 1)
+                    .opacity(logRing ? 0 : 0.8)
+                    .animation(.easeOut(duration: 1.8).repeatForever(autoreverses: false),
+                               value: logRing)
+            }
+        }
+        .onAppear { logRing = true }
+    }
     private var todayPillText: String {
-        if manualMode && !snapshot.todayWon { return Copy.logProgress }
-        guard snapshot.todayWon else { return "TODAY · \(remainingToday()) TO GO" }
-        if case .won(let manual)? = dayStates.first(where: {
-            if case .today = $0 { return true }
-            return false
-        }), manual { return "\(Copy.todayWon) \(Copy.byHand)" }
+        guard snapshot.todayWon else {
+            return Copy.todayToGo(Notifications.remainingText(challenge: challenge,
+                                                             todayValue: snapshot.todayValue))
+        }
+        if snapshot.dayIndex < dayStates.count,
+           case .won(let manual) = dayStates[snapshot.dayIndex], manual {
+            return Copy.todayWonByHand()
+        }
         return Copy.todayWon
     }
     private func openLogToday() {
         app.showingLogToday = LogTodayRequest(metric: challenge.metric,
                                               target: challenge.target,
                                               colorToken: challenge.colorToken)
-    }
-    private func remainingToday() -> String {
-        Notifications.remainingText(challenge: challenge, todayValue: snapshot.todayValue)
     }
 
     // MARK: first-win card (DESIGN §4: top = RT + 34)
@@ -371,9 +380,11 @@ public struct ChallengePageView: View {
         VStack(alignment: .leading, spacing: 4) {
             Text(Copy.firstWin).font(FillFont.mono(11))
                 .foregroundStyle(FillColor.color(for: challenge.colorToken))
-            Text("\(MetricDefaults.verb(for: challenge.metric)) \(Format.metric(challenge.target, metric: challenge.metric)) \(MetricDefaults.unit(for: challenge.metric)) today")
-                .font(.system(size: 17, weight: .bold))
-            Text(firstWinGets).font(.system(size: 15, weight: .medium))
+            Text(Copy.firstWinWhat(verb: MetricDefaults.verb(for: challenge.metric),
+                                   target: Format.metric(challenge.target, metric: challenge.metric),
+                                   unit: MetricDefaults.unit(for: challenge.metric)))
+                .font(FillFont.scaled(17, weight: .bold))
+            Text(firstWinGets).font(FillFont.scaled(15, weight: .medium))
                 .foregroundStyle(FillColor.text2)
         }
         .padding(18)
@@ -387,12 +398,14 @@ public struct ChallengePageView: View {
     private var firstWinGets: String {
         let r = challenge.reward
         if r.kind == .money, r.payout == .each || r.payout == .bonus {
-            return "and get \(Format.money(r.amount, currency: r.currency))"
+            return Copy.firstWinGetsMoney(Format.money(r.amount, currency: r.currency))
         }
         if r.kind == .item, r.itemPayout == .save, r.value > 0 {
-            return "and get \(Format.money(Derive.itemPerWin(value: r.value, x: max(1, challenge.x)), currency: r.currency)) toward \(r.name)"
+            return Copy.firstWinGetsSave(
+                Format.money(Derive.itemPerWin(value: r.value, x: max(1, challenge.x)),
+                             currency: r.currency), name: r.name)
         }
-        return "and you are one step closer to \(r.name)"
+        return Copy.firstWinGetsOther(r.name)
     }
 
     // MARK: footer (SPEC §7.3 item 11)
@@ -400,26 +413,28 @@ public struct ChallengePageView: View {
         Group {
             if snapshot.done {
                 Button(Copy.seeTrophy) { app.celebrating = challenge.id }
-                    .font(.system(size: 17, weight: .bold)).foregroundStyle(.white)
+                    .font(FillFont.scaled(17, weight: .bold)).foregroundStyle(.white)
                     .frame(maxWidth: .infinity).frame(height: 56)
                     .background(.white.opacity(0.2), in: Capsule())
                     .overlay(Capsule().stroke(.white, lineWidth: 1.5))
                     .accessibilityLabel(Copy.seeTrophy)
-            } else if challenge.reward.kind == .item, challenge.reward.itemPayout == .save, challenge.reward.value > 0 {
+            } else if challenge.reward.kind == .item, challenge.reward.itemPayout == .save,
+                      challenge.reward.value > 0,
+                      challenge.type == .flex || challenge.type == .streak {
                 footerGrid(left: Copy.savedTowardIt,
                            leftValue: Format.money(Derive.itemSaved(value: challenge.reward.value, x: challenge.x, wins: snapshot.wins), currency: challenge.reward.currency),
                            right: Copy.nextWin,
-                           rightValue: "+\(Format.money(Derive.itemNextWin(value: challenge.reward.value, x: challenge.x, wins: snapshot.wins), currency: challenge.reward.currency))")
+                           rightValue: Copy.plus(Format.money(Derive.itemNextWin(value: challenge.reward.value, x: challenge.x, wins: snapshot.wins), currency: challenge.reward.currency)))
             } else if challenge.reward.kind == .money,
                       challenge.reward.payout == .each || challenge.reward.payout == .bonus,
                       challenge.type != .open {
                 footerGrid(left: Copy.earned,
                            leftValue: Format.money(snapshot.moneyEarned, currency: challenge.reward.currency),
                            right: Copy.nextWin,
-                           rightValue: "+\(Format.money(snapshot.perWin, currency: challenge.reward.currency))")
+                           rightValue: Copy.plus(Format.money(snapshot.perWin, currency: challenge.reward.currency)))
             } else if challenge.reward.kind == .money, challenge.type == .open {
                 footerGrid(left: Copy.nextWin,
-                           leftValue: "+\(Format.money(snapshot.perWin, currency: challenge.reward.currency))",
+                           leftValue: Copy.plus(Format.money(snapshot.perWin, currency: challenge.reward.currency)),
                            right: nil, rightValue: nil)
             } else if challenge.reward.kind == .money, challenge.reward.payout == .end {
                 footerGrid(left: Copy.rewardAtTheEnd,
@@ -428,22 +443,26 @@ public struct ChallengePageView: View {
             } else if challenge.type == .streak {
                 footerGrid(left: Copy.missADay, leftValue: Copy.backToZero,
                            right: nil, rightValue: nil)
-            } else if challenge.reward.kind == .item, challenge.reward.value > 0 {
-                footerGrid(left: Copy.worth,
-                           leftValue: Format.money(challenge.reward.value, currency: challenge.reward.currency),
-                           right: nil, rightValue: nil)
             } else if challenge.reward.kind == .item, challenge.type == .open {
                 Button(Copy.imDoneClaim(challenge.reward.name)) { closeItem() }
-                    .font(.system(size: 17, weight: .bold)).foregroundStyle(.white)
+                    .font(FillFont.scaled(17, weight: .bold)).foregroundStyle(.white)
                     .frame(maxWidth: .infinity).frame(height: 56)
                     .background(.white.opacity(0.2), in: Capsule())
                     .overlay(Capsule().stroke(.white, lineWidth: 1.5))
                     .accessibilityLabel(Copy.imDoneClaim(challenge.reward.name))
+            } else if challenge.reward.kind == .item, challenge.reward.value > 0 {
+                footerGrid(left: Copy.worth,
+                           leftValue: Format.money(challenge.reward.value, currency: challenge.reward.currency),
+                           right: nil, rightValue: nil)
+            } else if challenge.reward.kind == .item {
+                footerGrid(left: Copy.rewardAtTheEnd,
+                           leftValue: challenge.reward.name,
+                           right: nil, rightValue: nil)
             } else {
                 footerGrid(left: Copy.earned,
                            leftValue: Format.money(snapshot.moneyEarned, currency: challenge.reward.currency),
                            right: Copy.nextWin,
-                           rightValue: "+\(Format.money(snapshot.perWin, currency: challenge.reward.currency))")
+                           rightValue: Copy.plus(Format.money(snapshot.perWin, currency: challenge.reward.currency)))
             }
         }
     }
@@ -475,7 +494,8 @@ public struct ChallengePageView: View {
             r.closedAt = Date()
             try? context.save()
         }
-        app.celebrating = challenge.id
+        app.dataVersion += 1
+        app.celebrating = id
     }
 
     // day bars helpers (indices)

@@ -2,6 +2,7 @@ import XCTest
 
 // Rescue dismissal: on the real pager, picking a rescue option must rebuild
 // snapshots so the card disappears (it used to stay until restart).
+@MainActor
 final class RescueTests: XCTestCase {
     func test_rescueExtendDismissesCard() throws {
         let app = XCUIApplication()

@@ -1,58 +1,66 @@
 # TASK.md — fill. implementation tracker
 
-Source of truth: `docs/SPEC.md` > `docs/DESIGN.md` > `design-mockups/` (photos, portrait iPhone rotated) > `docs/IMPLEMENTATION.md` examples.
-`docs/COPY.md` and `prototype/rewards-revamp.html` referenced in docs do NOT exist in repo — copy taken from SPEC body + mockup verbatim. All gaps flagged with [GAP].
+Source of truth: `docs/SPEC.md` > `docs/COPY.md` > `docs/DESIGN.md` > `design-mockups/` (photos, portrait iPhone rotated) > `docs/IMPLEMENTATION.md` examples.
+`prototype/rewards-revamp.html` referenced in docs does NOT exist in the repo — visual checks use `design-mockups/` instead.
+`docs/COPY.md` was also missing. It now exists as a **reconstructed** deck (SPEC body + ACCEPTANCE + mockups); invented lines are marked `[proposal]` / `[gap]` and still need product review.
 
-Status legend: [ ] todo · [~] in progress · [x] done
+Status legend: [ ] todo · [~] in progress · [x] done · [!] blocked on missing source
+
+**Honest status (20 Oct 2026):** code builds and unit/persistence tests are green, but **no milestone exit criterion is fully met yet**. The gaps are visual verification against the mockups, on-device HealthKit/background checks, the remaining Create UI tests, and accessibility verification at AX3. `review.txt` issues are fixed except where noted below.
 
 ## M0: Setup + DesignSystem
 - [x] Read AGENTS.md + all docs + all 31 mockups (via subagents, summaries in this file's appendix)
 - [x] Create TASK.md (this file)
-- [x] Xcode project Fill.xcodeproj (iOS 18, iPhone, portrait, light only), targets Fill + FillTests, Swift 6 strict — builds with ZERO warnings, `test` green (27 Swift Testing tests pass on iPhone 17 simulator + `swift test`). Regenerate via `python3 genproj.py` after adding files (also add to `sources`/`test_sources` + Package.swift untouched — Domain-only).
+- [x] Xcode project Fill.xcodeproj (iOS 18, iPhone, portrait, light only), targets Fill + FillTests + FillPersistenceTests + FillUITests, Swift 6 strict — app builds with zero code warnings; `swift test` 45 Domain + 15 Persistence tests green; simulator `xcodebuild test` covers the UI flows. Regenerate via `python3 genproj.py` after adding files (also add to `sources`/`test_sources`/`ui_test_sources`).
 - [x] Fill/DesignSystem: colors (8 palette + neutrals), fonts, Format helpers, components (ActivityPill, BottomBar, DayBars, FillStepper, Chip, Toast)
 - [x] Fill/App: FillApp.swift, AppState, root pager navigation
-- [x] Debug menu shell (DEBUG only): +1000 steps, finish, miss-until-OOR, health on/off, replay onboarding, seed demo, advance +1 day
+- [x] Debug menu (DEBUG only): +1000 steps, finish, miss-until-OOR, health on/off, replay onboarding, seed demo, advance +1 day — the two former stubs now write data and refresh the UI
 - [ ] Exit: components gallery matches DESIGN §5 in the gallery screen (gallery screen still to add)
 
 ## M1: Domain (pure Swift, Foundation only)
-- [x] Domain/Types.swift (Metric, ChallengeType, RewardKind/Category, MoneyPayout, ItemPayout, DataSource, DayKey, Reward, Challenge, DayResult) — Codable/Equatable/Sendable, Decimal money
-- [x] Domain/Engine.swift — Engine.snapshot per IMPLEMENTATION §4 steps 1-11
-- [x] Domain/Derive.swift — perWin, itemSaved, endDate, levelUp, rewardPhrase (a/an), createSentence, createValidation
+- [x] Domain/Types.swift (Metric, ChallengeType, RewardKind/Category, MoneyPayout, ItemPayout, DataSource, DayKey, Reward, Challenge, DayResult) — Codable/Equatable/Sendable, Decimal money; `DayKey` no longer force-unwraps
+- [x] Domain/Engine.swift — Engine.snapshot per IMPLEMENTATION §4 steps 1-11; One-time includes today; savings cap; free of force unwraps
+- [x] Domain/Derive.swift — perWin, itemSaved (capped at value), endDate, levelUp, rewardPhrase (a/an/“a treat”), createSentence, createValidation (reward checked second)
 - [x] Domain/Format.swift — INR en-IN, metric values, dates (5 Nov / ENDS 5 NOV)
-- [x] Domain/Copy.swift — copy deck reconstructed from SPEC + mockups [GAP: SPEC §12 missing]
-- [x] FillTests Domain tests A01-A33 (name test_<ID>_<short>) — 27 tests pass via `swift test`
-- [ ] Exit: A01-A33 pass
+- [x] Domain/Copy.swift — reconstructed deck, `docs/COPY.md`; invented lines marked [proposal]
+- [x] Domain/CreateDraft.swift — pure `CreateLogic` (Foundation only, no Observation); `CreateModel.swift` is the `@Observable` UI wrapper
+- [x] FillTests Domain tests A01-A33 (name test_<ID>_<short>) — 45 tests pass via `swift test`; A25-A27 in FillPersistenceTests; A13 now goes through the engine
+- [x] Exit: A01-A33 pass (verified locally: 45 Domain + 15 Persistence tests green)
 
 ## M2: Storage + Pages
-- [x] Persistence: SwiftData 6 models (ChallengeRecord, RewardEntry, ManualLog | MetricDay, AppSettings, NotificationLog), two stores, Mapping.swift, Repository upserts + dedupe, operations table
+- [x] Persistence: SwiftData 6 models (ChallengeRecord, RewardEntry, ManualLog | MetricDay, AppSettings, NotificationLog), two stores, Mapping.swift, Repository upserts + dedupe (now covers ChallengeRecord and ManualLog), `markFinal`, parent links; persistence tests D01-D11 green
 - [x] Seed demo data (9 challenges) [GAP: IMPLEMENTATION §13 missing; reconstructed from ACCEPTANCE P-states + mockups]
-- [x] Overview (page 0): header date/Today/gear, Rewards-claimed card, bands per challenge, empty state
-- [x] ChallengePage every state (P01-P10) per DESIGN §4 layout
+- [x] Overview (page 0): header date/Today/gear, Rewards-claimed card, bands per challenge with subtitles and total, empty state
+- [x] ChallengePage every state (P01-P10) per DESIGN §4 layout; 420 pt hero threshold; BY HAND and Rewarded beside the pill; corrected rule/hero/goal/footer copy; no share sheet
 - [x] BottomBar + Pager (page 0 Overview + N pages oldest-first)
-- [x] PageBuilder: store rows → DayResults → Engine snapshots + day-bar states wired into pager, overview bands (tap → page), and challenge pages (D01-D10 pass: 10/10)
-- [ ] Exit: screenshots match mockups (TODO: simulator screenshot review vs mockups; needs seeded run)
+- [x] `EvaluationEngine` in Persistence is the single evaluator core; `PageBuilder` delegates to it (D07, D10 through the real evaluator)
+- [ ] Exit: screenshots match mockups (TODO: seeded simulator screenshot review vs mockups; prototype HTML is missing)
 
 ## M3: Create
-- [x] Create model: draft + filled blanks, order lock (what → how often → reward) + hint
-- [x] Sentence with 3 blanks (dashed / locked dim / white pill), facts row (live ENDS/MISSES/MAX via refreshFacts), name + 8 colors + validation button, 3 panels (per-metric steppers+presets+C13 rings clamp; flex x/y + streak steppers + 7/14/30; money payouts filtered by type + amount/bonus/jar steppers + presets; item name/worth/split or "Add the price"), Start builds real reward → toast
-- [x] Create validation unit tests (C01/C09/C10/valid-money/valid-item-save/name-required)
-- [ ] Exit: C01-C13 pass (TODO: UI tests for panel flows C02-C08, C12-C13)
+- [x] Create model: pure `CreateLogic` + `@Observable CreateModel`; draft + filled blanks, order lock (what → how often → reward) + hints
+- [x] Sentence with 3 blanks (dashed / locked dim / white pill), facts row (live ENDS/MISSES/MAX via refreshFacts), name + 8 colors + validation button, 3 panels (per-metric steppers+presets+C13 rings clamp; flex x/y + streak steppers + 7/14/30; money payouts filtered by type + amount/bonus/jar steppers + presets; item name/worth/split or “Add the price”), Start builds real reward → toast
+- [x] Copy pass: “every day, no end”, “exercise for 30 minutes”, food/other placeholders, panel labels/hints, challenge name and item name stay independent
+- [x] Type switch clears inapplicable counts: No-end/One-time have no x/y, No-end each shows “—” (no maximum), and end-only rewards reset to “All at the end”
+- [x] Create validation unit tests (C01/C09/C10/valid-money/valid-item-save/name-required/reward-before-target)
+- [ ] Exit: C01-C13 pass (TODO: UI tests for panel flows C05-C08, C11-C13; only C02-C04 are driven in `CreateFlowTests`)
 
 ## M4: Data + Moments
 - [x] Activity: ActivitySource protocol, HealthKitSource (per-metric day values §5.3), MotionSource (steps fallback), ManualSource
-- [x] Evaluator (@MainActor, refresh-today, 2s coalesce, fetch/finalize/evaluate/ledger/OOR-stamp/reschedule)
-- [x] Day won overlay (2.6s auto-dismiss via AppState.showDayWon), Celebration (claim → Rewarded ✓ → 0.9s → toast; level-up inserts Level n+1), R04 delay 2.3s Day-won→celebration; Rescue card (2-tap scrap); Log today (stepper + chips + honesty note + save-max-rule + Evaluator refresh)
-- [x] Evaluator triggers: foreground/scene-active/midnight/tz-change wired in RootView; fresh-today-win detection (new ledger entry) → Day won; done-today → celebration; OOR first-time stamp
-- [ ] Exit: H, M, R pass on device (TODO: on-device Health verification; background-delivery observer registration at launch; HealthKit prompt flow)
+- [x] Evaluator core in `Fill/Persistence/EvaluationEngine.swift`: persists fetched days, re-fetches from min(lastEvaluated+1, yesterday) through today, marks past days final before fetching, backfills ledger using each win’s win number, detects done/OOR, caps per-win money at the window, handles manual logs
+- [x] Evaluator wrapper in Engagement: 2s coalescing that merges (does not drop), foreground/scene-active/midnight/tz-change, background task now runs the evaluator, observers registered in App init, HealthKit completion called after the evaluator
+- [x] Day won and celebration fire for every reward/type (per-win, end, jar, item-end, One time), not just per-win
+- [x] Day won overlay (2.6s auto-dismiss via AppState.showDayWon), Celebration (claim guard; claim → Rewarded ✓ → 0.9s → toast; level-up inserts Level n+1), R04 delay 2.3s Day-won→celebration; Rescue card (2-tap scrap, resets); Log today button (stepper + chips + honesty note + save-max-rule + Evaluator refresh)
+- [x] Notifications: nudges only before today’s time, removed on win/done/OOR/broken/scrap, currency-aware money; day-won/completion/out-of-reach notifications
+- [ ] Exit: H, M, R pass on device (TODO: on-device Health verification; background delivery; HealthKit prompt flow; only unit/persistence + simulator checks done)
 
 ## M5: Rest of app
-- [x] Rewards sheet (Claimed/In-progress toggle, money-only card per W07, category chips, item cards 2-col)
-- [x] Onboarding 7 groups/8 screens + roll 2.3s + Skip 2-5→8 + Health + Notifications + You're-set (welcome verified visually in simulator: 2-line headline, roll, chips)
-- [x] Notifications: full nudge scheduling (deterministic per-day IDs, removal on win/done/OOR/broken, never sleep, quiet 22–07, 2-per-day cap via NotificationLog with 14-day prune, per-metric bodies incl. steps-minutes + N06/N07 reward lines); shared remainingText helper
-- [x] Settings sheet (connect health, log-by-hand, nudge time Stepper 7–21 i.e. 22–07 unselectable per S02, iCloud backup, replay welcome, privacy footer)
-- [x] Device readiness: Fill.entitlements (HealthKit + background delivery), real Info.plist (usage strings, BG task id, portrait/iPhone/ITS encryption), privacy manifest in bundle, HealthKitController (auth/background observers, re-registers after grant since pre-auth observers die), BGAppRefresh registration, real Health + notification prompts, H05 rings gating, long-press-Today Debug menu (DEBUG), debug clock honored by Engine/Evaluator, no force-unwraps/prints; arm64 device slice builds clean; bundle verified. Fixed via log-stream triage: HealthKit observer callbacks now post .fillHealthUpdate on MainActor (was background-publish warning ×3 at launch), preset buttons expose their titles to VoiceOver/XCUITest.
-- [x] Headless visual verification: FillUITests target + CreateFlowTests (11 screenshots attached to xcresult)
-- [ ] Exit: O, N, W, S pass (TODO: UI tests; on-device verification per DEVICE-CHECKLIST below)
+- [x] Rewards sheet **removed** (SPEC has no rewards screen; review W* no longer applies). Rewards stay visible through each challenge page/footer and the Overview “Rewards claimed” count.
+- [x] Onboarding **replaced** per `onboarding.txt` + `welcome-onboarding/` prototype + `brand/` (old 8-screen fill. flow scrapped): 5 Wonday screens — Welcome (looping demo card, 6 goals, recolor), Walk to unlock (2.3s hold demo, no Health/save), Apple Health (read-only, silent denial), Notifications (lock preview, ask-again-later), You're set (ring/disc/check, real first challenge). Slide transitions, confetti/shake/haptics, Reduce Motion paths, replay from Settings. `FillUITests/OnboardingTests` (welcome→make-own, walk-unlock→start) green.
+- [x] Notifications: full nudge scheduling (deterministic per-day IDs, removal on win/done/OOR/broken/scrap, never sleep, quiet 22–07, 2-per-day cap via NotificationLog with 14-day prune, per-metric bodies incl. steps-minutes + N06/N07 reward lines)
+- [x] Settings sheet (connect health, log-by-hand, nudge time Stepper 7–21 i.e. 22–07 unselectable per S02, iCloud backup flag, replay welcome, privacy footer)
+- [x] Device readiness: Fill.entitlements (HealthKit + background delivery), real Info.plist (usage strings, BG task id, portrait/iPhone/ITS encryption), privacy manifest in bundle, HealthKitController (auth/background observers, re-registers after grant since pre-auth observers die), BGAppRefresh registration, real Health + notification prompts, H05 rings gating, long-press-Today Debug menu (DEBUG), debug clock honored by Engine/Evaluator, no force-unwraps/prints; arm64 device slice builds clean; bundle verified.
+- [x] Headless checks: FillUITests target + CreateFlowTests/GelFillTests/RescueTests/OnboardingTests (screenshots and flow assertions attached to xcresult)
+- [ ] Exit: O, N, S pass. Fresh-install onboarding is exercised by `OnboardingTests` (both paths) + `CreateFlowTests`; N/S UI tests and on-device verification are still TODO (see DEVICE-CHECKLIST below). Every in-app "wonday" uses the ¾ ring (`WondayWordmark`/`WondayWord` via `WondayFlow`, gap centred on top like `wonday-wordmark-transparent.png`); system strings (Info.plist prompts, notifications, Home Screen name) stay plain per the brief.
 
 ## DEVICE-CHECKLIST (for on-device verification)
 Run: open Fill.xcodeproj in Xcode → select your Team (Signing & Capabilities; no signing identity exists on this Mac, Xcode will create a profile) → connect iPhone (iOS 18+) → Run on device.
@@ -62,26 +70,32 @@ Run: open Fill.xcodeproj in Xcode → select your Team (Signing & Capabilities; 
 4. C-flow: Create a Flexible steps challenge with money-each reward → new page last + toast.
 5. R01–R03: Debug menu (long-press "Today") → "Miss days until out of reach" → OUT OF REACH + Extend/Restart/Scrap (scrap needs 2 taps).
 6. R04/R05: Debug → "Finish this challenge" → Day won → celebration ~2.3s later → Claim reward → "Rewarded ✓" → toast.
-7. Rewards sheet: Claimed/In progress tabs, MONEY REWARDED counts money only (W07).
+7. W*: not applicable — the Rewards sheet was removed. Check “Rewards claimed” on Overview and the reward/EARNED footer instead.
 8. N01/N02: set nudge time in Settings → nudge fires when today unwon; win before nudge time → no nudge. N05: sleep challenge never nudges.
 9. S01–S03: gear opens Settings; nudge 22–07 unselectable; Log-by-hand switch flips pages to Log today.
 10. H03: walk past goal with app closed → Day won on next open; background refresh keeps history (check after 1+ days).
 
 ## M6: Extras
-- [ ] iCloud backup switch (rebuild container, additive-only schema, VersionedSchema + MigrationPlan)
+- [~] iCloud backup: the Settings switch persists `iCloudBackup` only; no CloudKit container, VersionedSchema or MigrationPlan yet
 - [ ] Widgets (small today-band, medium overview), Live Activity, Log-today App Intent
 - [ ] Exit: manual QA §8
 
 ## M7: Polish
-- [ ] Accessibility (Dynamic Type to AX3, VoiceOver order, Reduce Motion, contrast 4.5:1)
-- [ ] Performance (60fps pager), zero warnings Swift 6, no network deps
+- [~] Accessibility: `FillFont.scaled` via UIFontMetrics (capped at 2×) across UI, VoiceOver labels on controls, Reduce Motion paths for onboarding/GelFill/celebration. **Not yet verified at AX3**, and contrast has not been measured.
+- [x] Manual wins use striped bars; GelFill wave flattened under today band/done; colors outside DesignSystem replaced (`FillColor.confettiYellow`, `FillColor.shadow`, `FillColor.ink`, `FillColor.surface`). Remaining `.white` is the on-color for text/fills over challenge colors.
+- [ ] Verify color contrast ≥ 4.5:1 and VoiceOver order on device
+- [x] Zero code warnings under Swift 6 (the only remaining warning is Xcode’s `appintentsmetadataprocessor` metadata note); no network deps
+- [ ] Performance (60fps pager)
 - [ ] App Store assets, privacy manifest, review notes
 - [ ] Exit: AGENTS.md §9 DoD
 
 ## Spec gaps / conflicts found
-1. SPEC references COPY.md + §12 copy deck — file missing. Reconstructing from SPEC body + mockups. [GAP]
-2. SPEC references prototype/rewards-revamp.html — missing; using design-mockups/ instead per user.
-3. IMPLEMENTATION §13 seed list missing; §14 exists. Reconstructing 8 seeds: October 10K (F20/30 steps orange), DGX Spark (F70/90 steps green), Run club (F12/30 run mustard), Kyoto streak (S30 violet?), Savings jar (N jar green), Sony A7 (F20/30 exercise purple), Sleep week (S7 sleep teal, claimed), Half marathon?/Omakase (once run 21.1 blue?) — verify against mockup pager counts 9/9.
+1. SPEC references COPY.md + §12 copy deck — the original was missing. `docs/COPY.md` is now reconstructed from SPEC body + ACCEPTANCE + mockups; every invented line is marked `[proposal]`/`[gap]` and needs product review.
+2. SPEC references prototype/rewards-revamp.html — still missing; using design-mockups/ instead per user. Visual parity is therefore unverified.
+2b. `DATABASE.md` §2 stores `iCloudBackup` in `AppSettings`; `review.txt` says it should be `UserDefaults`. DATABASE is the storage source of truth, so the flag stays in `AppSettings` until the docs agree. Flagged here.
+2c. `DESIGN.md` §5 specifies the GelFill press dent; SPEC does not. Kept. Share cards/ShareLink were removed because no SPEC/COPY source exists for their strings.
+2d. W* acceptance scenarios no longer apply: the Rewards sheet they test was removed (also noted in review §6).
+3. IMPLEMENTATION §13 seed list missing; §14 exists. Reconstructed 9 seeds (`Fill/Persistence/Seed.swift`): October 10K (F20/30 steps orange), DGX Spark (F70/90 steps green), Run club (F12/30 run amber), Kyoto streak (S30 rings violet), Savings jar (N jar green), Sony A7 (F20/30 exercise blue, USD), Sleep week (S7 sleep teal, Omakase reward), Half marathon (once run 21.1 blue), Shoes (F12/30 steps pink) — names/order match the mockup pager count 9/9; colours and offsets are reconstructed and still need a visual check.
 4. Currency: SPEC §1 says UI INR-only + one USD seed to test W05; mockup Sony A7 shows $2,000/$1,000/$100 — keeping USD only in seed.
 5. ACCEPTANCE R numbering skips R09-in-middle (R09 rings-at-3 listed after R06) — keeping IDs as written.
 6. DESIGN canvas says open prototype html — using mockups instead.
@@ -92,7 +106,7 @@ Run: open Fill.xcodeproj in Xcode → select your Team (Signing & Capabilities; 
 - Onboarding green trophy: 20 / CLAIMED·CHALLENGE COMPLETE·REWARD ring / Win it. Claim it.
 - Onboarding Health: Connect Apple Health / Steps, Activity rings, Exercise minutes, Workouts and distance, Sleep / Connect Apple Health / Not now, I'll log by hand
 - Onboarding blue: A nudge before the day ends. / notifications examples / Allow notifications / Not now
-- Onboarding black: ✓ / You're set. / Make my first challenge / Explore the demo first
+- Onboarding black: ✓ / You're set. / Make my first challenge / Explore first
 - Create: I'll [what you'll do] [how often] [to win your reward] / MOST YOU CAN WIN – / ENDS – / MISSES ALLOWED – / Name it / 8 colors / Fill in 3 blanks; panels What/How often/Your reward as specced
 - Challenge pages: orange October 10K F20/30 (Day13, 9 wins, ENDS 5 NOV, ₹2,00,000, EARNED ₹90,000 NEXT +₹10,000, TODAY·2,158 STEPS TO GO); green DGX Spark F70/90 Day1; mustard Run club F12/30; purple Sony A7 F20/30 exercise; green Savings jar N-jar 86 wins ₹86,000/₹2,00,000; teal Sleep week S7 completed REWARDED; rescue Out-of-reach sheet; celebration Run club gold 12 WINS / Claim reward / Level up·5.5km; DAY WON +₹1,000 green; Log today black pill variant
 - Overview Today: Monday 19 October / Rewards claimed 20 / bands per challenge with % OF GOAL

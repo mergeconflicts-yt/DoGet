@@ -1,0 +1,32 @@
+/* Shared article styles for privacy / help / guides. Loaded after styles.css. */
+body.page{background:#FFFDF9;color:#111216}
+body.page .topbar{position:sticky;top:0}
+.page-main{width:min(760px,92vw);margin:0 auto;padding:48px 0 24px}
+.crumb{font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#7A808C;margin-bottom:12px}
+.crumb a{color:#7A808C}
+.page-main h1{font-size:clamp(34px,6vw,52px);font-weight:900;letter-spacing:-.04em;line-height:1.02;color:#111216}
+.lede{margin-top:14px;font-size:18px;line-height:1.6;color:#3A3F47}
+.page-main h2{font-size:23px;font-weight:800;letter-spacing:-.02em;margin:34px 0 10px;color:#111216}
+.page-main p{margin:0 0 14px;line-height:1.7;font-size:16px;color:#2A2E35}
+.page-main ul,.page-main ol{margin:0 0 16px 20px;line-height:1.7;font-size:16px;color:#2A2E35}
+.page-main li{margin-bottom:8px}
+.faq details{background:#fff;border:1px solid #EEEFF2;border-radius:16px;margin-bottom:10px;padding:16px 18px}
+.faq summary{font-weight:800;font-size:16px;cursor:pointer;list-style:none}
+.faq summary::-webkit-details-marker{display:none}
+.faq summary::after{content:"+";float:right;color:var(--hero);font-weight:900}
+.faq details[open] summary::after{content:"–"}
+.faq details p{margin:10px 0 2px;font-size:15px}
+.cta-card{background:var(--hero);color:#fff;border-radius:24px;padding:30px 26px;text-align:center;margin:38px 0}
+.cta-card h2{color:#fff;margin:0 0 8px}
+.cta-card p{color:rgba(255,255,255,.92);margin-bottom:18px}
+.cta-card .btn{background:#fff;color:var(--hero)}
+.more{display:grid;gap:10px;margin:26px 0}
+.more a{display:block;background:#fff;border:1px solid #EEEFF2;border-radius:16px;padding:14px 18px;font-weight:700;text-decoration:none;color:#111216}
+.more a span{display:block;font-weight:500;font-size:13px;color:#7A808C}
+.page-foot{border-top:1px solid #EEEFF2;margin-top:20px;padding:22px 0 40px;width:min(760px,92vw);margin-left:auto;margin-right:auto;display:flex;gap:16px;flex-wrap:wrap;font-size:13px;font-weight:600;color:#5C626E}
+.page-foot a{color:#5C626E}
+.page-foot .copyr{margin-left:auto}
+.page-foot .madewith{flex-basis:100%;text-align:center}
+.page-foot .madewith a{text-decoration:underline;text-underline-offset:2px}
+.page-foot .heart{color:#FF2D6F}
+.meta{font-size:13px;color:#7A808C;margin-top:18px}

@@ -12,6 +12,7 @@ import SwiftUI
 public struct GelFill: View {
     var color: Color
     var animated: Bool = true
+    var wave: Bool = true
     var waveHeight: CGFloat = 16
 
     @State private var phase = 0.0
@@ -75,8 +76,8 @@ public struct GelFill: View {
     }
 
     private func surfaceY(x: CGFloat, w: CGFloat, t: Double) -> CGFloat {
-        var y = waveHeight * 0.5
-        if animated {
+        var y = wave ? waveHeight * 0.5 : 0
+        if animated, wave {
             y += sin(x / w * 4 * .pi + t * 2.4) * waveHeight * 0.28
             y += sin(x / w * 9 * .pi - t * 3.4 + 1.3) * waveHeight * 0.16
         }

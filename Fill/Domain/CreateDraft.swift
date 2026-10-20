@@ -1,10 +1,9 @@
 import Foundation
-import Observation
 
-// SPEC §7.6 — Create draft logic (no UI imports; unit tested).
+// SPEC §7.6 — Create draft logic. Pure Swift: no SwiftUI, no Observation,
+// no HealthKit. The `@Observable` wrapper lives in Features/Create.
 // Blanks fill strictly in order: 0 what you'll do, 1 how often, 2 reward.
-@Observable @MainActor
-public final class CreateModel {
+public struct CreateLogic: Equatable {
     public var draft = Derive.Draft()
     public var filled: Set<Int> = [] // 0 what, 1 how often, 2 reward
     public var openPanel: Int? = nil
@@ -17,68 +16,88 @@ public final class CreateModel {
     public var metric: Metric = .steps
     /// H05: no stand-hour samples in 7 days → Rings disabled (manual mode exempt).
     public var noWatch = false
+    /// True once the person typed their own challenge name. The item name then
+    /// stops overwriting it (and vice versa) — review UI item.
+    public var nameEdited = false
 
     public var factsEnds: String = "—"
     public var factsMisses: String = "—"
     public var factsMax: String = "—"
 
     public init() {
-        // Defaults mirror the What panel's pre-selected state: without this,
-        // Done on blank 0 with no chip tap fills the blank while draft.metric
-        // stays nil, and the button keeps saying "Fill in 1 blank".
-        draft.metric = .steps
-        draft.target = 10_000
+        // Nothing is pre-selected: the What chips, stepper and presets stay
+        // neutral until the person taps a metric, which sets draft.metric
+        // plus that metric's default target. Done on blank 0 with no tap
+        // shows Copy.pickWhat instead of filling (see done(_:)).
         // Money is the default reward kind.
         draft.rewardKind = .money
         draft.moneyPayout = .each
     }
 
-    public func tapBlank(_ i: Int) {
-        // Order lock: earlier blanks first (C02).
+    public mutating func tapBlank(_ i: Int) {        // Order lock: earlier blanks first (C02).
         for j in 0..<i where !filled.contains(j) {
-            hint = "First set \"\(blankName(j))\"."
+            hint = Copy.lockedHint(blankName(j))
             shakeBlank = j
-            Task { @MainActor in
-                try? await Task.sleep(for: .seconds(0.5))
-                if shakeBlank == j { shakeBlank = nil }
-            }
             return
         }
         hint = nil
         openPanel = i
     }
+
     public func blankName(_ i: Int) -> String {
         ["what you'll do", "how often", "your reward"][i]
     }
-    public func done(_ i: Int) {
+
+    public mutating func done(_ i: Int) {
         // Don't mark a blank filled when its draft section is still empty
-        // (e.g. Done with no tile/chip tap). Otherwise filled.count hits 3
-        // while Derive.validate still reports "Fill in 1 blank".
+        // (e.g. Done with no tile/chip tap).
         switch i {
         case 0:
-            guard draft.metric != nil else { hint = "Pick what you'll do."; return }
+            guard draft.metric != nil else { hint = Copy.pickWhat; return }
         case 1:
-            guard draft.type != nil else { hint = "Pick how often."; return }
+            guard draft.type != nil else { hint = Copy.pickHowOften; return }
         case 2:
-            guard draft.rewardKind != nil else { hint = "Pick your reward."; return }
+            guard draft.rewardKind != nil else { hint = Copy.pickYourReward; return }
         default: break
         }
         filled.insert(i)
         openPanel = nil
         hint = nil
         refreshFacts()
-        // Open next unfilled after 0.38s.
-        let next = (0..<3).first { !filled.contains($0) }
-        if let next {
-            Task { @MainActor in
-                try? await Task.sleep(for: .seconds(0.38))
-                openPanel = next
-            }
-        }
     }
+
+    /// Choosing How often resets the counts that do not apply to that type.
+    /// A No-end challenge has no x/y, so its "most you can win" must not keep
+    /// the previous Flexible count (review: No-end each max reward was wrong).
+    public mutating func pickType(_ t: ChallengeType) {
+        draft.type = t
+        switch t {
+        case .flex:
+            draft.x = 20; draft.y = 30
+        case .streak:
+            draft.x = 30; draft.y = 30
+        case .once:
+            draft.x = 0; draft.y = 0
+            if draft.rewardKind == .money { draft.moneyPayout = .end }
+            if draft.rewardKind == .item { draft.itemPayout = .end }
+        case .open:
+            draft.x = 0; draft.y = 0
+            if draft.rewardKind == .money,
+               draft.moneyPayout == .end || draft.moneyPayout == .bonus {
+                draft.moneyPayout = allowedPayouts.first
+            }
+            // No-end items are claimed at the end; there is no per-win split.
+            if draft.rewardKind == .item { draft.itemPayout = .end }
+        }
+        refreshFacts()
+    }
+
+    /// The next blank to open after "Done" (UI waits 0.38s, C03).
+    public var nextUnfilled: Int? { (0..<3).first { !filled.contains($0) } }
+
     public var buttonText: String {
-        if filled.count < 3 { return "Fill in \(3 - filled.count) blank\(3 - filled.count == 1 ? "" : "s")" }
-        return Derive.validate(draft) ?? "Start challenge"
+        if filled.count < 3 { return Copy.fillBlanks(3 - filled.count) }
+        return Derive.validate(draft) ?? Copy.startChallenge
     }
     public var valid: Bool { filled.count == 3 && Derive.validate(draft) == nil }
     /// Non-nil when the main button can't start: shown as a toast on tap.
@@ -86,6 +105,7 @@ public final class CreateModel {
         if filled.count < 3 { return buttonText }
         return Derive.validate(draft)
     }
+
     /// Auto name (SPEC §7.6): the item name, or "{target}{unit}".
     public var autoName: String {
         if let iname = draft.itemName, !iname.trimmingCharacters(in: .whitespaces).isEmpty {
@@ -95,20 +115,23 @@ public final class CreateModel {
     }
 
     /// SPEC §7.6 facts row. Called whenever the draft changes.
-    public func refreshFacts() {
-        let today = DayKey.from(date: Date(), calendar: .current)
+    public mutating func refreshFacts(today: DayKey = DayKey.from(date: Date(), calendar: .current)) {
         switch draft.type {
         case .flex:
             if let y = draft.y {
                 factsEnds = Format.date(today.adding(days: y - 1))
                 if let x = draft.x { factsMisses = "\(max(0, y - x))" }
+            } else {
+                factsEnds = "—"; factsMisses = "—"
             }
         case .streak:
             if let x = draft.x {
                 factsEnds = Format.date(today.adding(days: x - 1)); factsMisses = "0"
+            } else {
+                factsEnds = "—"; factsMisses = "—"
             }
-        case .once: factsEnds = "Any day"; factsMisses = "—"
-        case .open: factsEnds = "Never"; factsMisses = "—"
+        case .once: factsEnds = Copy.anyDayFact; factsMisses = "—"
+        case .open: factsEnds = Copy.never; factsMisses = "—"
         case nil: factsEnds = "—"; factsMisses = "—"
         }
         // MOST YOU CAN WIN needs how-often + reward.
@@ -116,7 +139,11 @@ public final class CreateModel {
             if draft.rewardKind == .money {
                 let a = draft.amount ?? 0
                 switch draft.moneyPayout {
-                case .each: factsMax = Format.money(a * Decimal(draft.x ?? 0))
+                case .each:
+                    // No end: there is no maximum to win.
+                    factsMax = draft.type == .open
+                        ? "—"
+                        : Format.money(a * Decimal(draft.x ?? 0))
                 case .bonus: factsMax = Format.money(a * Decimal(draft.x ?? 0) + (draft.bonus ?? 0))
                 case .end: factsMax = Format.money(a)
                 case .jar: factsMax = Format.money(draft.jarTarget ?? 0)

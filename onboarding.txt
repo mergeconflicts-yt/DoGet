@@ -1,0 +1,87 @@
+The name
+The app is Wonday. Inside the app, always write it lowercase "wonday", with the "o" drawn as a progress ring, ¼ full (wordmark A in prototype/wonday-brand.html). The ring takes the color of the text around it, with a faint track behind it.
+VoiceOver reads "Wonday". System text (notifications, Home Screen name) uses plain "Wonday".
+Overall feel
+• Bold color, big type, one idea per screen. Playful, but quick.
+• Screens 0, 1 (after fill), 3 and 4 are orange. Screen 2 (Health) is white.
+• Moving between screens: the new screen slides in from the right, the old one slides a little to the left and fades. Back does the reverse. About half a second, soft ease-out.
+• Screens 1-3 have a small header: back arrow and a 3-part progress bar (the current part fills in with a short slide). No Skip in v1.
+• Celebrations use confetti, a short phone shake, and a success haptic.
+• With Reduce Motion on: no loops, no confetti, no shake. Things appear in their final state.
+Screen 0 - Welcome
+Goal: explain the idea in 3 seconds.
+What is on screen (top to bottom): the wonday logo, a tilted demo card, a small dark reward chip, the headline, three lines of text, the Get started button, and three small chips.
+Animations
+1. Logo: the ring "o" draws itself once, from empty to ¾ full, just after the screen opens.
+2. Background: a few large, soft, see-through circles float slowly up and down. Small white bits drift upward and fade. This is calm, background motion only.
+3. Demo card (the main show). A white card, tilted a little, gently bobbing up and down. It plays a loop, about every 3.5 seconds:
+• The card starts empty. It shows a goal pill (for example STEPS), "TODAY", the number 0 and "of 10,000 steps".
+• Color fills the card from the bottom up, with a small moving wave on the top edge. The number climbs from 0 to the target at the same steady pace, about 2 seconds.
+• When the fill passes the text, the text turns white so it stays readable.
+• At full, a "wonday " stamp lands on the card (it pops in from big to normal size, slightly rotated, like a rubber stamp).
+• A moment later, the dark reward chip springs up from below the card: "YOUR REWARD • 210,000".
+• Then the next example starts. The whole screen changes color to the new goal's color, and the loop repeats.
+• Examples in order: Steps → z10,000 (orange), Rings → A trip to Taiwan (pink), Exercise → New headphones (green),
+Run → New running shoes (blue), Calories → Pizza night (teal), Sleep → A spa day (violet).
+
+Text
+• Headline (always 3 lines): Reward / yourself / for moving.
+• Under it: "Set a health goal. Choose your reward. Win the day." then in bold: We only keep the score. / You pay for your rewards.
+• Button: Get started (white, orange text).
+• Chips under the button: v No sign-up • v No account • v No server.
+Screen 1 - Walk to unlock
+Goal: let the user fee/ the app. Their effort fills the screen and unlocks a reward.
+Start state: light orange (tint) background. Centered title Walk 10,000 steps, sub "to unlock your reward." A very big 0 with
+"steps" under it. At the bottom, a big round dark button with a footprints icon and the label Hold to walk. A soft ring pulses outward from the button again and again, to invite a press.
+While holding
+• The button shrinks slightly (pressed feel) and the pulse stops.
+• Orange color rises from the bottom of the whole screen, with a moving wave on top.
+• The number counts up with the fill. Holding for about 2.3 seconds in total reaches 10,000.
+• If the user lets go, the fill and number stop where they are (they do not go back down). Holding again continues.
+• As the fill rises, things it covers turn white: first the button (white circle, orange icon) and its label, then the big number, then at the very top the title, header and status bar.
+At 10,000 (unlock), in this order
+1. The button and the number fade away. Success haptic, a short phone shake, and a confetti burst. The screen is now fully orange.
+2. A white reward card springs up into the middle: a gift icon, "REWARD UNLOCKED", and an amount that counts up from
+2O to 210,000 in about a second.
+3. The Next button fades in at the bottom.
+4. Just after, two rows slide up under the card:
+• v We only keep the score.
+• E You pay for your rewards.
+5. The gift icon gives a small wiggle every few seconds.
+
+Rules
+• This is a demo only. Do not read Health. Do not save a win or a challenge.
+• There is no Skip: the only way forward is holding to unlock, or Back.
+• VoiceOver: add an action that completes the walk at once, for people who cannot press and hold.
+Screen 2 - Apple Health
+White screen. A red Health icon at the top with a gentle heartbeat animation. Title Connect Apple Health, and a short line: wonday only reads data, never writes, uploads or shares it.
+A list shows what we read: Steps (marked YOUR GOAL), Activity rings, Exercise minutes, Workouts and distance, Active calories, Sleep. The switches are for display only.
+• Connect Apple Health → shows the iS Health permission sheet. When it closes, the button turns green: "Connected
+"for a moment, then go to the next screen. Never show an error, because iOS does not tell us if the user said no.
+• Not now, I'll log manually → turn on manual mode, show a short toast ("OK. Tap "Log today" to add your activity."), then go next.
+Screen 3 - Notifications
+Orange screen. At the top, a lock screen preview (time 8:00, date). Two sample notifications drop in one after the other, with a small bounce:
+1. "4 hours left • 2,158 steps to make today a wonday."
+2. "That's a wonday! / • 10 of 20 done. 10,000 is getting closer."
+They clear and drop in again every few seconds.
+Title: A nudge, / not spam. Sub: "Only when a win is close, or when you win."
+• Allow notifications → shows the iOS prompt. Then the button says "Allowed " for a moment, then go next.
+• Not now → go next. Ask again later, after the first real win.
+
+Screen 4 - You're set
+Orange screen, no header. The animation plays in sequence:
+1. A big white ring draws itself around a circle.
+2. A white disc pops into the center.
+3. An orange check mark draws itself on the disc.
+4. The title You're set. and the sub "Start with this challenge, or make your own." are shown.
+5. A white card slides up: "YOUR FIRST CHALLENGE • I'll walk 10,000 steps a day on 20 of 30 days to win 210,000 for each wonday." (Challenges can't be edited once created, so the card makes no edit promise.)
+6. Confetti bursts.
+• Start this challenge → create the real challenge (steps 10,000, 20 of 30 days, 710,000 each win, named like "October 10K"), open its page, and show the toast "Challenge started. Go make it a wonday!"
+• Make my own → open a fresh Create with nothing pre-selected; the user picks the activity and goal.
+
+Must be true
+• The user clearly understands: we only keep the score, you pay for your rewards (screens 0 and 1).
+• Every in-app "wonday" uses the name style.
+• Onboarding shows once; it can be replayed from Settings.
+• No error if Health access is refused.
+• Reduce Motion: no loops, no confetti, no shake.

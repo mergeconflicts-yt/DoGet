@@ -16,11 +16,11 @@ public struct CreateView: View {
     private var header: some View {
         ZStack {
             Button(action: { dismiss() }) {
-                Image(systemName: "xmark").font(.system(size: 16, weight: .bold))
+                Image(systemName: "xmark").font(FillFont.scaled(16, weight: .bold))
                     .foregroundStyle(.white).frame(width: 44, height: 44)
                     .background(.white.opacity(0.2), in: Circle())
             }
-            .accessibilityLabel("Close")
+            .accessibilityLabel(Copy.close)
             .frame(maxWidth: .infinity, alignment: .leading)
             Text(Copy.newChallenge).font(FillFont.mono(12)).tracking(1.4)
                 .foregroundStyle(.white.opacity(0.9))
@@ -33,14 +33,14 @@ public struct CreateView: View {
     private var sentence: some View {
         FlowLayout(spacing: 8) {
             Text("I'll").font(FillFont.sentence).foregroundStyle(.white)
-            blank(0, label: "what you'll do")
+            blank(0, label: Copy.blankWhat)
             if model.filled.contains(0) {
                 Text(MetricDefaults.suffix(for: model.metric))
                     .font(FillFont.sentence).foregroundStyle(.white)
             }
-            blank(1, label: "how often")
+            blank(1, label: Copy.blankHowOften)
             Text("to win").font(FillFont.sentence).foregroundStyle(.white)
-            blank(2, label: "your reward")
+            blank(2, label: Copy.blankReward)
         }
         .accessibilityElement(children: .combine)
     }
@@ -52,7 +52,7 @@ public struct CreateView: View {
             model.tapBlank(i)
         } label: {
             Text(isFilled ? filledText(i) : label)
-                .font(.system(size: isFilled ? 24 : 26, weight: .heavy))
+                .font(FillFont.scaled(isFilled ? 24 : 26, weight: .heavy))
                 .lineLimit(1).minimumScaleFactor(0.6)
                 .foregroundStyle(isFilled ? FillColor.color(for: model.colorToken)
                                           : .white.opacity(locked ? 0.35 : 0.75))
@@ -60,7 +60,7 @@ public struct CreateView: View {
                 .background {
                     if isFilled {
                         Capsule().fill(.white)
-                            .shadow(color: .black.opacity(0.12), radius: 6, y: 6)
+                            .shadow(color: FillColor.shadow.opacity(0.12), radius: 6, y: 6)
                     } else {
                         Capsule()
                             .stroke(.white.opacity(locked ? 0.35 : 0.55),
@@ -78,7 +78,7 @@ public struct CreateView: View {
             withAnimation(.easeInOut(duration: 0.5)) { shakeTrigger = 1 }
         }
         .accessibilityLabel(isFilled ? filledText(i) : label)
-        .accessibilityHint(locked ? "Locked" : "")
+        .accessibilityHint(locked ? Copy.lockedHint(model.blankName(i)) : "")
     }
 
     @State private var pulseOn = true
@@ -94,7 +94,7 @@ public struct CreateView: View {
                 sentence
                 factsRow
                 if let h = model.hint {
-                    Text(h).font(.system(size: 15, weight: .semibold))
+                    Text(h).font(FillFont.scaled(15, weight: .semibold))
                         .foregroundStyle(.white)
                         .accessibilityLabel(h)
                 }
@@ -128,22 +128,23 @@ public struct CreateView: View {
         }
     }
     private func actText() -> String {
+        let target = Format.metric(model.target, metric: model.metric)
         switch model.metric {
-        case .steps: return "walk \(Format.metric(model.target, metric: .steps)) steps"
-        case .rings: return "close \(Int(model.target)) rings"
-        case .exercise: return "exercise \(Int(model.target)) min"
-        case .run: return "run \(Format.metric(model.target, metric: .run)) km"
-        case .sleep: return "sleep \(Format.metric(model.target, metric: .sleep)) hours"
-        case .calories: return "burn \(Format.metric(model.target, metric: .calories)) kcal"
+        case .steps: return Copy.actSteps(target)
+        case .rings: return Copy.actRings("\(Int(model.target))")
+        case .exercise: return Copy.actExercise("\(Int(model.target))")
+        case .run: return Copy.actRun(target)
+        case .sleep: return Copy.actSleep(target)
+        case .calories: return Copy.actCalories(target)
         }
     }
     private func ruleText() -> String {
         switch model.draft.type {
-        case .flex: return "on \(model.draft.x ?? 20) of \(model.draft.y ?? 30) days"
-        case .streak: return "\(model.draft.x ?? 30) days in a row"
-        case .once: return "just once"
-        case .open: return "until I stop"
-        case nil: return "how often"
+        case .flex: return Copy.createRuleFlex(model.draft.x ?? 20, model.draft.y ?? 30)
+        case .streak: return Copy.createRuleStreak(model.draft.x ?? 30)
+        case .once: return Copy.createRuleOnce
+        case .open: return Copy.createRuleOpen
+        case nil: return Copy.blankHowOften
         }
     }
 
@@ -161,7 +162,7 @@ public struct CreateView: View {
             Text(title).font(FillFont.mono(9)).tracking(0.4)
                 .foregroundStyle(.white.opacity(0.8))
                 .lineLimit(2).fixedSize(horizontal: false, vertical: true)
-            Text(value).font(.system(size: 16, weight: .bold)).foregroundStyle(.white)
+            Text(value).font(FillFont.scaled(16, weight: .bold)).foregroundStyle(.white)
                 .lineLimit(1).minimumScaleFactor(0.7)
         }
         .padding(.horizontal, 12).padding(.vertical, 10)
@@ -175,21 +176,13 @@ public struct CreateView: View {
 
     private var nameRow: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 8) {
-                Text("Name it").font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.8))
-                TextField(model.autoName, text: $model.name)
-                    .font(.system(size: 16, weight: .semibold)).foregroundStyle(.white)
-                    .autocorrectionDisabled().textInputAutocapitalization(.words)
-                    .onChange(of: model.name) { _, v in
-                        if model.draft.rewardKind == .item {
-                            model.draft.itemName = v
-                            model.refreshFacts()
-                        }
-                    }
-                    .accessibilityLabel("Challenge name")
-            }
-            .padding(.vertical, 6)
+            TextField(model.draft.metric == nil ? "" : model.autoName, text: Binding(
+                get: { model.name },
+                set: { model.setName($0) }))
+                .font(FillFont.scaled(16, weight: .semibold)).foregroundStyle(.white)
+                .autocorrectionDisabled().textInputAutocapitalization(.words)
+                .padding(.vertical, 10)
+                .accessibilityLabel(Copy.challengeNameLabel)
             Rectangle().fill(.white.opacity(0.35)).frame(height: 1)
         }
     }
@@ -203,9 +196,9 @@ public struct CreateView: View {
                     Circle().fill(FillColor.color(for: t))
                         .frame(width: 28, height: 28)
                         .overlay(Circle().stroke(.white, lineWidth: model.colorToken == t ? 3 : 0))
-                        .overlay(Circle().stroke(.black.opacity(0.06), lineWidth: 1))
+                        .overlay(Circle().stroke(FillColor.shadow.opacity(0.06), lineWidth: 1))
                 }
-                .accessibilityLabel("Color \(t)")
+                .accessibilityLabel(Copy.colorLabel(t))
             }
             Spacer(minLength: 0)
         }
@@ -216,7 +209,7 @@ public struct CreateView: View {
             if model.valid { start() }
             else if let p = model.problem { app.showToast(p) }
         }
-        .font(.system(size: 17, weight: .bold))
+        .font(FillFont.scaled(17, weight: .bold))
         .foregroundStyle(FillColor.color(for: model.colorToken))
         .frame(maxWidth: .infinity).frame(height: 60)
         .background(.white.opacity(model.valid ? 1 : 0.6), in: Capsule())
@@ -227,9 +220,9 @@ public struct CreateView: View {
     // MARK: - Panels (bottom sheet + scrim)
 
     private var panelScrim: some View {
-        Color.black.opacity(0.3).ignoresSafeArea()
+        FillColor.scrim.ignoresSafeArea()
             .onTapGesture { model.openPanel = nil }
-            .accessibilityLabel("Close panel")
+            .accessibilityLabel(Copy.closePanel)
     }
 
     private func panel(_ i: Int) -> some View {
@@ -249,20 +242,20 @@ public struct CreateView: View {
                 .padding(.horizontal, 20).padding(.top, 8)
             }
             .frame(maxHeight: 480)
-            Button("Done") { model.done(i) }
-                .font(.system(size: 17, weight: .bold)).foregroundStyle(.white)
+            Button(Copy.done) { model.done(i) }
+                .font(FillFont.scaled(17, weight: .bold)).foregroundStyle(.white)
                 .frame(maxWidth: .infinity).frame(height: 56)
                 .background(FillColor.color(for: model.colorToken), in: Capsule())
                 .padding(.horizontal, 20).padding(.top, 10).padding(.bottom, 14)
-                .accessibilityLabel("Done")
+                .accessibilityLabel(Copy.done)
         }
-        .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 30))
+        .background(FillColor.surface, in: RoundedRectangle(cornerRadius: 30))
         .transition(.move(edge: .bottom).combined(with: .opacity))
     }
 
     private func labeled(_ label: String, _ view: some View) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(label).font(FillFont.mono(10)).tracking(0.8)
+            Text(label.uppercased()).font(FillFont.mono(10)).tracking(0.8)
                 .foregroundStyle(FillColor.text3)
             view
         }
@@ -283,25 +276,33 @@ public struct CreateView: View {
                             model.refreshFacts()
                         } label: {
                             Chip(text: MetricDefaults.label(for: m),
-                                 selected: model.metric == m,
+                                 selected: model.draft.metric == m,
                                  colorToken: model.colorToken)
                         }
                         .buttonStyle(.plain)
                         .opacity(disabled ? 0.4 : 1)
                         .accessibilityLabel(disabled
-                            ? "Close rings, needs Apple Watch"
+                            ? "\(MetricDefaults.label(for: m)), \(Copy.needsAppleWatch)"
                             : MetricDefaults.label(for: m))
                         .disabled(disabled)
                     }
                 }
                 if model.noWatch {
-                    Text("Close rings · \(Copy.needsAppleWatch)")
-                        .font(.system(size: 13, weight: .semibold))
+                    Text("\(MetricDefaults.label(for: .rings)) · \(Copy.needsAppleWatch)")
+                        .font(FillFont.scaled(13, weight: .semibold))
                         .foregroundStyle(FillColor.text2)
                 }
             }
             .onAppear { checkWatch() }
-            labeled("TARGET", FillStepper(
+            if model.draft.metric == nil {
+                // Nothing pre-selected: the stepper and presets appear once
+                // the person taps a metric chip above.
+                Text(Copy.pickWhat)
+                    .font(FillFont.scaled(15, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .accessibilityLabel(Copy.pickWhat)
+            } else {
+            labeled(Copy.targetLabel, FillStepper(
                 value: MetricDefaults.stepperValue(target: model.target, metric: model.metric),
                 unit: MetricDefaults.stepperUnit(metric: model.metric),
                 colorToken: model.colorToken,
@@ -326,6 +327,7 @@ public struct CreateView: View {
                 model.target = MetricDefaults.presets(for: model.metric)[i]
                 model.draft.target = model.target; model.refreshFacts()
             }
+            }
         }
     }
 
@@ -341,23 +343,23 @@ public struct CreateView: View {
     private var howOftenPanel: some View {
         VStack(alignment: .leading, spacing: 14) {
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
-                Tile(title: "Flexible", sub: "X of Y days", selected: model.draft.type == .flex,
+                Tile(title: Copy.tileFlex, sub: Copy.tileFlexSub, selected: model.draft.type == .flex,
                      colorToken: model.colorToken) { pickType(.flex) }
-                Tile(title: "Streak", sub: "In a row", selected: model.draft.type == .streak,
+                Tile(title: Copy.tileStreak, sub: Copy.tileStreakSub, selected: model.draft.type == .streak,
                      colorToken: model.colorToken) { pickType(.streak) }
-                Tile(title: "One time", sub: "Just once", selected: model.draft.type == .once,
+                Tile(title: Copy.tileOnce, sub: Copy.tileOnceSub, selected: model.draft.type == .once,
                      colorToken: model.colorToken) { pickType(.once) }
-                Tile(title: "No end", sub: "Until you stop", selected: model.draft.type == .open,
+                Tile(title: Copy.tileOpen, sub: Copy.tileOpenSub, selected: model.draft.type == .open,
                      colorToken: model.colorToken) { pickType(.open) }
             }
             if model.draft.type == .flex {
                 HStack(spacing: 10) {
-                    FillStepper(value: "\(model.draft.x ?? 20)", unit: "wins",
+                    FillStepper(value: "\(model.draft.x ?? 20)", unit: Copy.winsUnit,
                                 colorToken: model.colorToken,
                                 onMinus: { model.draft.x = max(1, (model.draft.x ?? 20) - 1); model.refreshFacts() },
                                 onPlus: { model.draft.x = min(365, (model.draft.x ?? 20) + 1); model.refreshFacts() },
                                 onSet: { v in model.draft.x = min(365, max(1, Int(v.rounded()))); model.refreshFacts() })
-                    FillStepper(value: "\(model.draft.y ?? 30)", unit: "days",
+                    FillStepper(value: "\(model.draft.y ?? 30)", unit: Copy.daysUnit,
                                 colorToken: model.colorToken,
                                 onMinus: { model.draft.y = max((model.draft.x ?? 20), (model.draft.y ?? 30) - 1); model.refreshFacts() },
                                 onPlus: { model.draft.y = min(365, (model.draft.y ?? 30) + 1); model.refreshFacts() },
@@ -365,7 +367,7 @@ public struct CreateView: View {
                 }
             }
             if model.draft.type == .streak {
-                FillStepper(value: "\(model.draft.x ?? 30)", unit: "days",
+                FillStepper(value: "\(model.draft.x ?? 30)", unit: Copy.daysUnit,
                             colorToken: model.colorToken,
                             onMinus: { model.draft.x = max(1, (model.draft.x ?? 30) - 1); model.draft.y = model.draft.x; model.refreshFacts() },
                             onPlus: { model.draft.x = min(365, (model.draft.x ?? 30) + 1); model.draft.y = model.draft.x; model.refreshFacts() },
@@ -381,15 +383,7 @@ public struct CreateView: View {
     }
 
     private func pickType(_ t: ChallengeType) {
-        model.draft.type = t
-        if t == .flex { model.draft.x = 20; model.draft.y = 30 }
-        if t == .streak { model.draft.x = 30; model.draft.y = 30 }
-        if t == .once, model.draft.rewardKind == .money { model.draft.moneyPayout = .end }
-        if t == .open, model.draft.rewardKind == .money,
-           model.draft.moneyPayout == .end || model.draft.moneyPayout == .bonus {
-            model.draft.moneyPayout = model.allowedPayouts.first
-        }
-        model.refreshFacts()
+        model.pickType(t)
     }
 
     // MARK: - Your reward (kind chips + money/item panels)
@@ -398,11 +392,11 @@ public struct CreateView: View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 8) {
                 ForEach([
-                    ("Money", "banknote", RewardKind.money, RewardCategory.other),
-                    ("Trip", "airplane", RewardKind.item, RewardCategory.trip),
-                    ("Food", "fork.knife", RewardKind.item, RewardCategory.food),
-                    ("Buy", "bag", RewardKind.item, RewardCategory.item),
-                    ("Other", "star.fill", RewardKind.item, RewardCategory.other),
+                    (Copy.rewardMoney, "banknote", RewardKind.money, RewardCategory.other),
+                    (Copy.rewardTrip, "airplane", RewardKind.item, RewardCategory.trip),
+                    (Copy.rewardFood, "fork.knife", RewardKind.item, RewardCategory.food),
+                    (Copy.rewardBuy, "bag", RewardKind.item, RewardCategory.item),
+                    (Copy.rewardOther, "star.fill", RewardKind.item, RewardCategory.other),
                 ], id: \.0) { t in
                     kindChip(t.0, icon: t.1, kind: t.2, category: t.3)
                 }
@@ -410,8 +404,8 @@ public struct CreateView: View {
             if model.draft.rewardKind == .money { moneyPanel }
             else if model.draft.rewardKind == .item { itemPanel }
             else {
-                Text("Pick a reward above.")
-                    .font(.system(size: 14)).foregroundStyle(FillColor.text2)
+                Text(Copy.pickReward)
+                    .font(FillFont.scaled(14)).foregroundStyle(FillColor.text2)
             }
         }
     }
@@ -429,8 +423,8 @@ public struct CreateView: View {
             model.refreshFacts()
         } label: {
             VStack(spacing: 4) {
-                Image(systemName: icon).font(.system(size: 16, weight: .semibold))
-                Text(title).font(.system(size: 13, weight: .semibold))
+                Image(systemName: icon).font(FillFont.scaled(16, weight: .semibold))
+                Text(title).font(FillFont.scaled(13, weight: .semibold))
                     .lineLimit(1).minimumScaleFactor(0.8)
             }
             .foregroundStyle(selected ? .white : FillColor.ink)
@@ -449,7 +443,7 @@ public struct CreateView: View {
                     Button(payoutLabel(p)) {
                         model.draft.moneyPayout = p; model.refreshFacts()
                     }
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(FillFont.scaled(14, weight: .semibold))
                     .foregroundStyle(model.draft.moneyPayout == p ? .white : FillColor.ink)
                     .padding(.horizontal, 16).padding(.vertical, 11)
                     .background(model.draft.moneyPayout == p ? FillColor.color(for: model.colorToken) : FillColor.chipBg,
@@ -457,9 +451,9 @@ public struct CreateView: View {
                     .accessibilityLabel(payoutLabel(p))
                 }
             }
-            labeled(model.draft.moneyPayout == .end ? "AMOUNT" : "EACH WIN", FillStepper(
+            labeled(Copy.amountLabel, FillStepper(
                 value: Format.money(model.draft.amount ?? 0),
-                unit: model.draft.moneyPayout == .end ? "in total" : "each win",
+                unit: model.draft.moneyPayout == .end ? Copy.payoutEnd : Copy.payoutEach,
                 colorToken: model.colorToken,
                 onMinus: { model.draft.amount = max(0, (model.draft.amount ?? 0) - moneyStep()); model.refreshFacts() },
                 onPlus: { model.draft.amount = (model.draft.amount ?? 0) + moneyStep(); model.refreshFacts() },
@@ -470,16 +464,16 @@ public struct CreateView: View {
                 model.draft.amount = moneyPresets()[i]; model.refreshFacts()
             }
             if model.draft.moneyPayout == .bonus {
-                labeled("BONUS", FillStepper(
-                    value: Format.money(model.draft.bonus ?? 0), unit: "when you finish",
+                labeled(Copy.bonusLabel, FillStepper(
+                    value: Format.money(model.draft.bonus ?? 0), unit: Copy.payoutEnd,
                     colorToken: model.colorToken,
                     onMinus: { model.draft.bonus = max(0, (model.draft.bonus ?? 0) - moneyStep()); model.refreshFacts() },
                     onPlus: { model.draft.bonus = (model.draft.bonus ?? 0) + moneyStep(); model.refreshFacts() },
                     onSet: { v in model.draft.bonus = max(0, Decimal(v)); model.refreshFacts() }))
             }
             if model.draft.moneyPayout == .jar {
-                labeled("JAR TARGET", FillStepper(
-                    value: Format.money(model.draft.jarTarget ?? 0), unit: "jar opens at",
+                labeled(Copy.jarTargetLabel, FillStepper(
+                    value: Format.money(model.draft.jarTarget ?? 0), unit: Copy.goalJar,
                     colorToken: model.colorToken,
                     onMinus: { model.draft.jarTarget = max(0, (model.draft.jarTarget ?? 0) - moneyStep()); model.refreshFacts() },
                     onPlus: { model.draft.jarTarget = (model.draft.jarTarget ?? 0) + moneyStep(); model.refreshFacts() },
@@ -489,10 +483,10 @@ public struct CreateView: View {
     }
     private func payoutLabel(_ p: MoneyPayout) -> String {
         switch p {
-        case .each: return "Each win"
-        case .end: return model.draft.type == .once ? "One reward" : "At the end"
-        case .bonus: return "Win + bonus"
-        case .jar: return "Jar"
+        case .each: return Copy.payoutEach
+        case .end: return model.draft.type == .once ? Copy.payoutOnce : Copy.payoutEnd
+        case .bonus: return Copy.payoutBonus
+        case .jar: return Copy.payoutJar
         }
     }
     private func moneyStep() -> Decimal {
@@ -513,33 +507,33 @@ public struct CreateView: View {
         VStack(alignment: .leading, spacing: 14) {
             TextField(itemPlaceholder, text: Binding(
                 get: { model.draft.itemName ?? "" },
-                set: { model.draft.itemName = $0; model.name = $0; model.refreshFacts() }))
-                .font(.system(size: 16, weight: .semibold))
+                set: { model.setItemName($0) }))
+                .font(FillFont.scaled(16, weight: .semibold))
                 .padding(.horizontal, 16).padding(.vertical, 12)
                 .background(FillColor.chipBg, in: RoundedRectangle(cornerRadius: 16))
                 .autocorrectionDisabled()
-                .accessibilityLabel("Reward name")
-            labeled("WORTH", FillStepper(
-                value: Format.money(model.draft.itemValue ?? 0), unit: "price",
+                .accessibilityLabel(Copy.rewardNameLabel)
+            labeled(Copy.itemWorth, FillStepper(
+                value: Format.money(model.draft.itemValue ?? 0), unit: Copy.worth,
                 colorToken: model.colorToken,
                 onMinus: { model.draft.itemValue = max(0, (model.draft.itemValue ?? 0) - 1_000); model.refreshFacts() },
                 onPlus: { model.draft.itemValue = (model.draft.itemValue ?? 0) + 1_000; model.refreshFacts() },
                 onSet: { v in model.draft.itemValue = max(0, Decimal(v)); model.refreshFacts() }))
-            labeled("HOW DO YOU GET IT?", howYouGetIt)
+            labeled(Copy.howYouGetIt, howYouGetIt)
         }
     }
     private var itemPlaceholder: String {
         switch model.draft.itemCategory {
-        case .trip: return "Where to? e.g. Taiwan"
-        case .food: return "What treat? e.g. Pizza night"
-        case .item: return "What to buy? e.g. DGX Spark"
-        default: return "What's the reward?"
+        case .trip: return Copy.itemTripPlaceholder
+        case .food: return Copy.itemFoodPlaceholder
+        case .item: return Copy.itemBuyPlaceholder
+        default: return Copy.itemOtherPlaceholder
         }
     }
     @ViewBuilder private var howYouGetIt: some View {
         if (model.draft.itemValue ?? 0) <= 0 {
-            Text("Add the price to see options.")
-                .font(.system(size: 14)).foregroundStyle(FillColor.text2)
+            Text(Copy.addPrice)
+                .font(FillFont.scaled(14)).foregroundStyle(FillColor.text2)
         } else if model.draft.type == .once || model.draft.type == .open || model.draft.type == nil {
             itemSplitTile(.end)
         } else {
@@ -552,11 +546,13 @@ public struct CreateView: View {
     private func itemSplitTile(_ p: ItemPayout) -> some View {
         let v = model.draft.itemValue ?? 0
         let x = model.draft.x ?? 0
-        let title: String = p == .end ? "All at the end" : "\(Format.money(Derive.itemPerWin(value: v, x: max(1, x)))) each win"
+        let title: String = p == .end
+            ? Copy.allAtTheEnd
+            : Copy.itemSaveTitle(Format.money(Derive.itemPerWin(value: v, x: max(1, x))))
         let sub: String = {
             switch p {
-            case .end: return "\(Format.money(v)) when you finish"
-            case .save: return "\(max(1, x)) wins × \(Format.money(Derive.itemPerWin(value: v, x: max(1, x))))"
+            case .end: return Copy.itemEndSub(Format.money(v))
+            case .save: return Copy.itemSaveSub(max(1, x), Format.money(Derive.itemPerWin(value: v, x: max(1, x))))
             }
         }()
         return Tile(title: title, sub: sub, selected: model.draft.itemPayout == p,

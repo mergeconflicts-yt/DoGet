@@ -53,7 +53,10 @@ public actor HealthKitSource: ActivitySource {
     }
     private func longestRun(range: Range<Date>) async -> Double {
         await withCheckedContinuation { cont in
-            let p = HKQuery.predicateForWorkouts(with: .running)
+            let run = HKQuery.predicateForWorkouts(with: .running)
+            let dates = HKQuery.predicateForSamples(withStart: range.lowerBound,
+                end: range.upperBound, options: .strictStartDate)
+            let p = NSCompoundPredicate(andPredicateWithSubpredicates: [run, dates])
             let q = HKSampleQuery(sampleType: .workoutType(), predicate: p, limit: HKObjectQueryNoLimit,
                                   sortDescriptors: nil) { _, samples, _ in
                 let best = (samples as? [HKWorkout])?.filter {
@@ -65,14 +68,17 @@ public actor HealthKitSource: ActivitySource {
         }
     }
     private func sleepHours(day: DayKey, calendar: Calendar) async -> Double {
-        // Asleep samples ending 12:00 day-before → 12:00 this day.
+        // A sleep sample belongs to the day it ENDS on: asleep samples ending
+        // 12:00 the day before → 12:00 this day. An overlap window counted the
+        // same sample on two days (review Medium).
         guard let type = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) else { return 0 }
         var comp = DateComponents(); comp.year = day.year; comp.month = day.month; comp.day = day.day
-        guard let noon = calendar.date(bySettingHour: 12, minute: 0, second: 0, of: calendar.date(from: comp)!) else { return 0 }
-        let start = calendar.date(byAdding: .day, value: -1, to: noon)!
+        guard let midnight = calendar.date(from: comp),
+              let noon = calendar.date(bySettingHour: 12, minute: 0, second: 0, of: midnight),
+              let start = calendar.date(byAdding: .day, value: -1, to: noon) else { return 0 }
         return await withCheckedContinuation { cont in
-            let q = HKSampleQuery(sampleType: type,
-                                  predicate: HKQuery.predicateForSamples(withStart: start, end: noon, options: []),
+            let p = HKQuery.predicateForSamples(withStart: start, end: noon, options: .strictEndDate)
+            let q = HKSampleQuery(sampleType: type, predicate: p,
                                   limit: HKObjectQueryNoLimit, sortDescriptors: nil) { _, samples, _ in
                 let asleep: Set<Int> = [HKCategoryValueSleepAnalysis.asleepCore.rawValue,
                                         HKCategoryValueSleepAnalysis.asleepDeep.rawValue,
@@ -87,21 +93,29 @@ public actor HealthKitSource: ActivitySource {
     }
     private func ringsClosed(day: DayKey, calendar: Calendar) async -> Double {
         // That day's activity summary: how many of Move/Exercise/Stand hit goal.
+        // Move is active energy against its goal; appleMoveTime is a different
+        // metric and made a 3-ring target unwinnable for most people (High 3).
         await withCheckedContinuation { cont in
-            let q = HKActivitySummaryQuery(predicate: nil) { _, summaries, _ in
+            var comps = DateComponents()
+            comps.year = day.year; comps.month = day.month; comps.day = day.day
+            let p = HKQuery.predicate(forActivitySummariesBetweenStart: comps, end: comps)
+            let q = HKActivitySummaryQuery(predicate: p) { _, summaries, _ in
                 let cal = calendar
                 let match = summaries?.first {
-                    let comps = $0.dateComponents(for: cal)
-                    return comps.year == day.year && comps.month == day.month && comps.day == day.day
+                    let c = $0.dateComponents(for: cal)
+                    return c.year == day.year && c.month == day.month && c.day == day.day
                 }
                 guard let s = match else { cont.resume(returning: 0); return }
                 var n = 0.0
-                if s.appleMoveTimeGoal.doubleValue(for: .minute()) > 0,
-                   s.appleMoveTime.doubleValue(for: .minute()) >= s.appleMoveTimeGoal.doubleValue(for: .minute()) { n += 1 }
-                if s.appleExerciseTimeGoal.doubleValue(for: .minute()) > 0,
-                   s.appleExerciseTime.doubleValue(for: .minute()) >= s.appleExerciseTimeGoal.doubleValue(for: .minute()) { n += 1 }
-                if s.appleStandHoursGoal.doubleValue(for: .count()) > 0,
-                   s.appleStandHours.doubleValue(for: .count()) >= s.appleStandHoursGoal.doubleValue(for: .count()) { n += 1 }
+                let move = s.activeEnergyBurned.doubleValue(for: .kilocalorie())
+                let moveGoal = s.activeEnergyBurnedGoal.doubleValue(for: .kilocalorie())
+                if moveGoal > 0, move >= moveGoal { n += 1 }
+                let exercise = s.appleExerciseTime.doubleValue(for: .minute())
+                let exerciseGoal = s.appleExerciseTimeGoal.doubleValue(for: .minute())
+                if exerciseGoal > 0, exercise >= exerciseGoal { n += 1 }
+                let stand = s.appleStandHours.doubleValue(for: .count())
+                let standGoal = s.appleStandHoursGoal.doubleValue(for: .count())
+                if standGoal > 0, stand >= standGoal { n += 1 }
                 cont.resume(returning: n)
             }
             store.execute(q)

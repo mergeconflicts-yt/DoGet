@@ -2,8 +2,9 @@ import Foundation
 import SwiftData
 
 // M2 — builds one PageData per active challenge: Domain challenge +
-// Engine snapshot + day-bar states + manual flag. Single place where
-// store rows become UI input (DATABASE §5, IMPLEMENTATION §4).
+// Engine snapshot + day-bar states + manual flag. It delegates the read model
+// to EvaluationEngine.pages so the Evaluator and the UI can never disagree
+// (DATABASE §5, IMPLEMENTATION §4).
 public struct PageData: Identifiable {
     public var id: UUID { challenge.id }
     public var record: ChallengeRecord
@@ -17,46 +18,13 @@ public struct PageData: Identifiable {
 public enum PageBuilder {
     public static func build(context: ModelContext, now: Date = Date(),
                              calendar: Calendar = .current) -> [PageData] {
-        let repo = Repository(context: context)
-        let records = repo.fetchActiveChallenges()
+        let manualMode = Repository(context: context).settings().manualMode
         let today = DayKey.from(date: now, calendar: calendar)
-        let manualMode = repo.settings().manualMode
-
-        let metricRows = (try? context.fetch(FetchDescriptor<MetricDay>())) ?? []
-        let manualRows = (try? context.fetch(FetchDescriptor<ManualLog>())) ?? []
-        var metricVals: [String: Double] = [:]
-        var metricSrcs: [String: String] = [:]
-        var finals: Set<String> = []
-        for m in metricRows where m.dayKey <= today.key {
-            metricVals["\(m.metricRaw)|\(m.dayKey)"] = m.value
-            metricSrcs["\(m.metricRaw)|\(m.dayKey)"] = m.sourceRaw
-            if m.isFinal { finals.insert("\(m.metricRaw)|\(m.dayKey)") }
-        }
-        var manualVals: [String: Double] = [:]
-        for m in manualRows where m.dayKey <= today.key {
-            manualVals["\(m.metricRaw)|\(m.dayKey)"] = m.value
-        }
-
-        return records.compactMap { rec in
-            guard let c = toChallenge(rec) else { return nil }
-            let md = Dictionary(uniqueKeysWithValues: metricVals
-                .filter { $0.key.hasPrefix("\(c.metric.rawValue)|") }
-                .map { (String($0.key.split(separator: "|")[1]), $0.value) })
-            let ms = Dictionary(uniqueKeysWithValues: metricSrcs
-                .filter { $0.key.hasPrefix("\(c.metric.rawValue)|") }
-                .map { (String($0.key.split(separator: "|")[1]), $0.value) })
-            let man = Dictionary(uniqueKeysWithValues: manualVals
-                .filter { $0.key.hasPrefix("\(c.metric.rawValue)|") }
-                .map { (String($0.key.split(separator: "|")[1]), $0.value) })
-            let fin = Set(finals.filter { $0.hasPrefix("\(c.metric.rawValue)|") }
-                .map { String($0.split(separator: "|")[1]) })
-            let (results, best) = Mapping.dayResults(challenge: c, metricDays: md,
-                metricSources: ms, finalDays: fin, manualLogs: man, today: today)
-            let snap = Engine.snapshot(challenge: c, days: results, best: best,
-                                       now: now, calendar: calendar)
-            let states = dayStates(challenge: c, results: results, snapshot: snap, today: today)
-            return PageData(record: rec, challenge: c, snapshot: snap,
-                            states: states, manualMode: manualMode)
+        return EvaluationEngine.pages(context: context, now: now, calendar: calendar).map { p in
+            PageData(record: p.record, challenge: p.challenge, snapshot: p.snapshot,
+                     states: dayStates(challenge: p.challenge, results: p.results,
+                                       snapshot: p.snapshot, today: today),
+                     manualMode: manualMode)
         }
     }
 

@@ -8,6 +8,8 @@
 	</array>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>CFBundleDisplayName</key>
+	<string>Wonday</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -27,9 +29,9 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSHealthShareUsageDescription</key>
-	<string>fill. reads your activity on this iPhone to check your challenges. It never uploads, writes or shares your data.</string>
+	<string>wonday reads your activity on this iPhone to check your challenges. It never uploads, writes or shares your data.</string>
 	<key>NSMotionUsageDescription</key>
-	<string>fill. counts your steps on this iPhone when Apple Health is not connected.</string>
+	<string>wonday counts your steps on this iPhone when Apple Health is not connected.</string>
 	<key>UILaunchScreen_Generation</key>
 	<true/>
 	<key>UIRequiredDeviceCapabilities</key>

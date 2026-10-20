@@ -3,6 +3,7 @@ import XCTest
 // Gel proof: presses the welcome fill off-center and captures the ripple
 // mid-life via simctl (XCTAttachments stay in the xcresult; this file lands
 // where it can be eyeballed directly).
+@MainActor
 final class GelFillTests: XCTestCase {
     var app: XCUIApplication!
 
@@ -23,14 +24,14 @@ final class GelFillTests: XCTestCase {
         attachment.name = "ripple"
         attachment.lifetime = .keepAlways
         add(attachment)
-        try? shot.pngRepresentation.write(to: URL(fileURLWithPath: "/tmp/shots/ripple.png"))
     }
 
     func test_manualPillOpensLogSheet() throws {
         let manual = XCUIApplication()
         manual.launchArguments += ["-FillShot", "challenge-manual"]
         manual.launch()
-        let pill = manual.buttons["TODAY · LOG YOUR PROGRESS"]
+        let pill = manual.buttons.containing(
+            NSPredicate(format: "label BEGINSWITH 'Log today'")).firstMatch
         XCTAssertTrue(pill.waitForExistence(timeout: 10))
         pill.tap()
         XCTAssertTrue(manual.staticTexts["Log today"].waitForExistence(timeout: 5))

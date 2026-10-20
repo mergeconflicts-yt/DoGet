@@ -58,25 +58,27 @@ public struct DayKey: Codable, Equatable, Sendable, Comparable, Hashable {
     }
 
     /// Whole-day math on a fixed Gregorian UTC calendar so DST never matters (A33).
-    private static var utcCal: Calendar {
+    private static let utcCal: Calendar = {
         var c = Calendar(identifier: .gregorian)
-        c.timeZone = TimeZone(secondsFromGMT: 0)!
+        c.timeZone = TimeZone(secondsFromGMT: 0) ?? TimeZone(identifier: "UTC") ?? .gmt
         return c
-    }
+    }()
 
     private func utcDate() -> Date {
         var c = DateComponents()
         c.year = year; c.month = month; c.day = day
-        return DayKey.utcCal.date(from: c)!
+        return DayKey.utcCal.date(from: c) ?? Date(timeIntervalSince1970: 0)
     }
 
     private static func fromUTCDate(_ d: Date) -> DayKey {
         let c = utcCal.dateComponents([.year, .month, .day], from: d)
-        return DayKey(year: c.year!, month: c.month!, day: c.day!)
+        return DayKey(year: c.year ?? 1970, month: c.month ?? 1, day: c.day ?? 1)
     }
 
     public func adding(days: Int) -> DayKey {
-        let d = DayKey.utcCal.date(byAdding: .day, value: days, to: utcDate())!
+        guard let d = DayKey.utcCal.date(byAdding: .day, value: days, to: utcDate()) else {
+            return self
+        }
         return DayKey.fromUTCDate(d)
     }
 
@@ -89,13 +91,24 @@ public struct DayKey: Codable, Equatable, Sendable, Comparable, Hashable {
     public func timeRange(in calendar: Calendar) -> Range<Date> {
         var comp = DateComponents()
         comp.year = year; comp.month = month; comp.day = day
-        let start = calendar.date(from: comp)!
-        let end = calendar.date(byAdding: .day, value: 1, to: start)!
+        let start = calendar.date(from: comp) ?? Date(timeIntervalSince1970: 0)
+        let end = calendar.date(byAdding: .day, value: 1, to: start) ?? start
         return start..<end
     }
 
     public static func < (lhs: DayKey, rhs: DayKey) -> Bool {
         lhs.key < rhs.key
+    }
+}
+
+// MARK: - Palette (DESIGN §1.1 — kept in Domain so level up can pick the next color)
+
+public enum ChallengePalette {
+    public static let tokens = ["orange", "pink", "green", "blue", "violet", "teal", "amber", "ink"]
+
+    public static func next(after token: String) -> String {
+        guard let i = tokens.firstIndex(of: token) else { return tokens[0] }
+        return tokens[(i + 1) % tokens.count]
     }
 }
 

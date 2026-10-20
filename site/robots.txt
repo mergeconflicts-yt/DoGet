@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+
+# Live at wonday.kranehx.com.
+Sitemap: https://wonday.kranehx.com/sitemap.xml
