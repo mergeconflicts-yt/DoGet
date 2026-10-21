@@ -203,9 +203,8 @@ public struct ChallengePageView: View {
     // MARK: fill (gel base from the bottom + today band on top)
     private func fillStack(scale: CGFloat, fb: CGFloat, lh: CGFloat) -> some View {
         let c = FillColor.color(for: challenge.colorToken)
-        // Wave stays on under the today band too (only done/won go flat);
-        // Reduce Motion makes the fill flat.
-        let wave = !snapshot.done && !snapshot.todayWon
+        // Wave stays on (only done goes flat); Reduce Motion stills it.
+        let wave = !snapshot.done
         return VStack(spacing: 0) {
             if lh > 0 {
                 ZStack(alignment: .top) {
