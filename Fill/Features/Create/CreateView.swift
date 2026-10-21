@@ -51,7 +51,7 @@ public struct CreateView: View {
         return Button {
             model.tapBlank(i)
         } label: {
-            Text(isFilled ? filledText(i) : label)
+            pillLabel(i, isFilled: isFilled, label: label)
                 .font(FillFont.scaled(isFilled ? 24 : 26, weight: .heavy))
                 .lineLimit(1).minimumScaleFactor(0.6)
                 .foregroundStyle(isFilled ? FillColor.color(for: model.colorToken)
@@ -79,6 +79,28 @@ public struct CreateView: View {
         }
         .accessibilityLabel(isFilled ? filledText(i) : label)
         .accessibilityHint(locked ? Copy.lockedHint(model.blankName(i)) : "")
+    }
+
+    private func pillLabel(_ i: Int, isFilled: Bool, label: String) -> some View {
+        // Reward pill (i==2) carries bucks mid-sentence — render bucks smaller
+        // via AttributedString so the pill stays compact.
+        if isFilled, i == 2 {
+            return AnyView(Text(bucksAttributed(filledText(i), baseSize: 24, smallSize: 13)))
+        }
+        return AnyView(Text(isFilled ? filledText(i) : label))
+    }
+
+    private func bucksAttributed(_ s: String, baseSize: CGFloat, smallSize: CGFloat) -> AttributedString {
+        var ats = AttributedString(s)
+        ats.swiftUI.font = FillFont.scaled(baseSize, weight: .heavy)
+        var search = s.startIndex..<s.endIndex
+        while let found = s.range(of: "bucks", options: [], range: search) {
+            if let arange = Range(found, in: ats) {
+                ats[arange].swiftUI.font = FillFont.scaled(smallSize, weight: .semibold)
+            }
+            search = found.upperBound..<s.endIndex
+        }
+        return ats
     }
 
     @State private var pulseOn = true
@@ -110,6 +132,11 @@ public struct CreateView: View {
             }
         }
         .sensoryFeedback(.warning, trigger: model.hint)
+        .onAppear {
+            if model.openPanel == nil && model.filled.isEmpty {
+                model.openPanel = 0
+            }
+        }
         .task(id: reduceMotion) {
             guard !reduceMotion else { return }
             while !Task.isCancelled {
@@ -162,14 +189,32 @@ public struct CreateView: View {
             Text(title).font(FillFont.mono(9)).tracking(0.4)
                 .foregroundStyle(.white.opacity(0.8))
                 .lineLimit(2).fixedSize(horizontal: false, vertical: true)
-            Text(value).font(FillFont.scaled(16, weight: .bold)).foregroundStyle(.white)
-                .lineLimit(1).minimumScaleFactor(0.7)
+            factValue(value)
         }
         .padding(.horizontal, 12).padding(.vertical, 10)
         .frame(maxWidth: .infinity * flex, alignment: .leading)
         .background(.white.opacity(0.18), in: RoundedRectangle(cornerRadius: 16))
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(title) \(value)")
+    }
+
+    private func factValue(_ value: String) -> some View {
+        // "2,00,000 bucks" -> number 16 bold, bucks much smaller.
+        if value.hasSuffix(" bucks") {
+            let number = String(value.dropLast(" bucks".count))
+            return AnyView(
+                HStack(alignment: .lastTextBaseline, spacing: 3) {
+                    Text(number).font(FillFont.scaled(16, weight: .bold)).foregroundStyle(.white)
+                        .lineLimit(1).minimumScaleFactor(0.7)
+                    Text("bucks").font(FillFont.mono(9)).foregroundStyle(.white.opacity(0.8))
+                        .lineLimit(1)
+                }
+            )
+        }
+        return AnyView(
+            Text(value).font(FillFont.scaled(16, weight: .bold)).foregroundStyle(.white)
+                .lineLimit(1).minimumScaleFactor(0.7)
+        )
     }
 
     // MARK: - Name + colors + main button

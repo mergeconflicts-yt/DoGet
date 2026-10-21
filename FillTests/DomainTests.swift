@@ -376,16 +376,19 @@ struct EngineTests {
         #expect(m.openPanel == nil)
         #expect(m.nextUnfilled == 1)
     }
-    @Test func test_createStartsWithNothingSelected() {
+    @Test func test_createStartsWithStepsAndFlexDefaults() {
         let m = CreateLogic()
-        #expect(m.draft.metric == nil)
-        #expect(m.draft.target == nil)
+        #expect(m.draft.metric == .steps)
+        #expect(m.draft.target == 10_000)
+        #expect(m.draft.type == .flex)
+        #expect(m.draft.x == 20 && m.draft.y == 30)
         #expect(!m.filled.contains(0))
     }
     @Test func test_doneWithNoMetricPromptsInsteadOfFilling() {
         var m = CreateLogic()
+        m.draft.metric = nil; m.draft.target = nil
         m.tapBlank(0)
-        m.done(0) // no chip tap: must not fill
+        m.done(0) // no metric: must not fill
         #expect(!m.filled.contains(0))
         #expect(m.hint == Copy.pickWhat)
     }

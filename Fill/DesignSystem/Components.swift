@@ -193,10 +193,7 @@ public struct FillStepper: View {
                 focused = true
             } label: {
                 VStack(spacing: 0) {
-                    Text(value).font(FillFont.scaled(30, weight: .heavy))
-                        .foregroundStyle(FillColor.color(for: colorToken))
-                        .monospacedDigit()
-                        .minimumScaleFactor(0.6).lineLimit(1)
+                    stepperValueText
                     if !unit.isEmpty {
                         Text(unit).font(FillFont.scaled(13, weight: .semibold))
                             .foregroundStyle(FillColor.text2)
@@ -211,6 +208,27 @@ public struct FillStepper: View {
     private func endTyping() {
         typing = false
         focused = false
+    }
+
+    // "1,000 bucks" -> number big, bucks small so steppers stay compact.
+    @ViewBuilder private var stepperValueText: some View {
+        if value.hasSuffix(" bucks") {
+            let number = String(value.dropLast(" bucks".count))
+            HStack(alignment: .lastTextBaseline, spacing: 4) {
+                Text(number).font(FillFont.scaled(30, weight: .heavy))
+                    .foregroundStyle(FillColor.color(for: colorToken))
+                    .monospacedDigit()
+                    .minimumScaleFactor(0.6).lineLimit(1)
+                Text("bucks").font(FillFont.scaled(13, weight: .semibold))
+                    .foregroundStyle(FillColor.text2)
+                    .lineLimit(1)
+            }
+        } else {
+            Text(value).font(FillFont.scaled(30, weight: .heavy))
+                .foregroundStyle(FillColor.color(for: colorToken))
+                .monospacedDigit()
+                .minimumScaleFactor(0.6).lineLimit(1)
+        }
     }
 }
 

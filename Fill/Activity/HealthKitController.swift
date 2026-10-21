@@ -1,5 +1,6 @@
 import Foundation
 import HealthKit
+import os
 
 public extension Notification.Name {
     /// Posted when a HealthKit observer fires (IMPLEMENTATION §5.4).
@@ -55,6 +56,8 @@ public final class HealthKitController {
             registerBackgroundDelivery()
             return true
         } catch {
+            Logger(subsystem: "com.wonday.rewards", category: "health")
+                .error("Health authorize failed: \(error.localizedDescription)")
             return false
         }
     }
@@ -66,6 +69,11 @@ public final class HealthKitController {
             if store.authorizationStatus(for: t) != .notDetermined { return true }
         }
         return false
+    }
+
+    /// Raw per-type status for diagnostics (Debug menu).
+    public func storeAuthorization(_ type: HKObjectType) -> HKAuthorizationStatus {
+        store.authorizationStatus(for: type)
     }
 
     /// True when the user granted at least one read type. iOS never

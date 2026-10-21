@@ -187,25 +187,24 @@ struct HealthConnectPage: View {
 
     private func connect() {
         guard !connecting, !connected else { return }
-        // Allowed or Don't Allow — that's it for this install. iOS shows the
-        // system sheet only once, so a denied re-tap shows how to turn it on.
-        if HealthKitController.shared.hasBeenAsked,
-           !HealthKitController.shared.isAuthorized {
-            showHowTo = true
-            return
-        }
         connecting = true
         Task { @MainActor in
+            // Always request first — iOS shows the sheet once per install.
+            // First denial stays silent; a re-tap after denial shows how-to.
+            let wasAsked = HealthKitController.shared.hasBeenAsked
             // H01/H02: silent denial — never show Connected unless granted.
             let granted = await HealthKitController.shared.authorize()
             connecting = false
-            guard granted else { return }
-            let repo = Repository(context: context)
-            repo.settings().manualMode = false
-            try? context.save()
-            connected = true
-            try? await Task.sleep(for: .seconds(0.9))
-            onNext()
+            if granted {
+                let repo = Repository(context: context)
+                repo.settings().manualMode = false
+                try? context.save()
+                connected = true
+                try? await Task.sleep(for: .seconds(0.9))
+                onNext()
+            } else if wasAsked {
+                showHowTo = true
+            }
         }
     }
 
@@ -223,11 +222,12 @@ struct HealthConnectPage: View {
                 .foregroundStyle(FillColor.text2)
                 .accessibilityLabel("\(Copy.onbHealthHowTitle). \(Copy.onbHealthHowBody)")
             Button(Copy.onbHealthOpenSettings) {
-                if let healthURL = URL(string: "x-apple-health://"),
-                   UIApplication.shared.canOpenURL(healthURL) {
-                    UIApplication.shared.open(healthURL)
-                } else if let url = URL(string: UIApplication.openSettingsURLString) {
-                    UIApplication.shared.open(url)
+                Task { @MainActor in
+                    if let healthURL = URL(string: "x-apple-health://"),
+                       await UIApplication.shared.open(healthURL) {
+                    } else if let url = URL(string: UIApplication.openSettingsURLString) {
+                        await UIApplication.shared.open(url)
+                    }
                 }
             }
             .font(FillFont.scaled(17, weight: .bold))

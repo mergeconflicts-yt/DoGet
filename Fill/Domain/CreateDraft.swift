@@ -25,13 +25,18 @@ public struct CreateLogic: Equatable {
     public var factsMax: String = "—"
 
     public init() {
-        // Nothing is pre-selected: the What chips, stepper and presets stay
-        // neutral until the person taps a metric, which sets draft.metric
-        // plus that metric's default target. Done on blank 0 with no tap
-        // shows Copy.pickWhat instead of filling (see done(_:)).
+        // Defaults: What = Steps, How often = Flexible (first tile).
+        // The stepper/presets and flex x/y show immediately; blanks still
+        // fill strictly in order via Done.
         // Money is the default reward kind.
+        draft.metric = .steps
+        draft.target = 10_000
         draft.rewardKind = .money
         draft.moneyPayout = .each
+        draft.type = .flex
+        draft.x = 20
+        draft.y = 30
+        refreshFacts()
     }
 
     public mutating func tapBlank(_ i: Int) {        // Order lock: earlier blanks first (C02).

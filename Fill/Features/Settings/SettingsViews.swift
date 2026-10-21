@@ -66,8 +66,14 @@ public struct SettingsView: View {
 public struct DebugMenuView: View {
     @Environment(\.modelContext) private var context
     @Environment(AppState.self) private var app
+    @State private var healthStatus = ""
     public var body: some View {
         List {
+            Section("HealthKit") {
+                Text(healthLine()).font(.footnote).foregroundStyle(.secondary)
+                Button("Request Health access") { requestHealth() }
+                Button("Refresh Health status") { healthStatus = healthLine() }
+            }
             Button("+1,000 steps today") { addSteps() }
             Button("Finish this challenge") { finishChallenge() }
             Button("Miss days until out of reach") { missUntilOutOfReach() }
@@ -121,6 +127,19 @@ public struct DebugMenuView: View {
     private func replay() {
         Repository(context: context).settings().onboardingDone = false
         try? context.save()
+    }
+    private func healthLine() -> String {
+        let c = HealthKitController.shared
+        let types = HealthKitController.readTypes()
+        let asked = types.filter { c.storeAuthorization($0) != .notDetermined }.count
+        return "available=\(HealthKitController.isAvailable) types=\(types.count) asked=\(asked) authorized=\(c.isAuthorized)"
+    }
+    private func requestHealth() {
+        Task { @MainActor in
+            let granted = await HealthKitController.shared.authorize()
+            healthStatus = "granted=\(granted) " + healthLine()
+            await Evaluator.shared.refresh(context: context, app: app, now: app.now)
+        }
     }
 }
 #endif
