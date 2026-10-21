@@ -119,10 +119,9 @@ public struct OverviewBand: View {
             ZStack(alignment: .leading) {
                 RoundedRectangle(cornerRadius: 24).fill(FillColor.tint(challenge.colorToken))
                 GeometryReader { g in
-                    // Corners always match the box (24 everywhere). A visible
-                    // fill is never narrower than the corner diameter: below
-                    // 48pt the corners collapse into each other and stop
-                    // looking like the box.
+                    // Left corners match the box (24); the right stays square
+                    // until the fill is complete, like a filling bar.
+                    let full = base >= 1
                     let baseW = base <= 0 ? 0 : max(g.size.width * base, 48)
                     let layerW = g.size.width * layer
                     HStack(spacing: 0) {
@@ -135,7 +134,10 @@ public struct OverviewBand: View {
                                 .frame(width: layerW)
                         }
                     }
-                    .clipShape(RoundedRectangle(cornerRadius: 24))
+                    .clipShape(UnevenRoundedRectangle(
+                        topLeadingRadius: 24, bottomLeadingRadius: 24,
+                        bottomTrailingRadius: full ? 24 : 0,
+                        topTrailingRadius: full ? 24 : 0))
                 }
                 bandText(widthFill: base, dark: true)
                 GeometryReader { g in
