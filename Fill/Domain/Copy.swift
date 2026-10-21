@@ -264,6 +264,10 @@ public enum Copy {
     public static let restartFromToday = "Restart from today"
     public static let scrapChallenge = "Scrap challenge"
     public static let tapAgainToScrap = "Tap again to scrap"
+    // [proposal] List swipe Give up — no SPEC source, needs review.
+    public static let giveUp = "Give up"
+    public static let tapAgainToGiveUp = "Tap again to give up"
+    public static let toastGaveUp = "Given up. Your rewards are kept."
     public static func extend(days: Int, date: String) -> String {
         "Extend by \(days) day\(days == 1 ? "" : "s") · ends \(date)"
     }
@@ -302,11 +306,15 @@ public enum Copy {
     }
     public static func nudgeWinMoney(_ amount: String) -> String { " wins \(amount) today" }
     public static let nudgeWinDay = " wins the day"
-    public static func notifDayWonBody(_ amount: String) -> String { "Day won. \(amount)" }
+    public static func notifDayWonBody(_ amount: String) -> String { "That's a wonday! \(amount)" }
     public static func notifCompleteBody(_ reward: String) -> String {
         "Challenge complete. \(reward) is yours."
     }
-    public static let notifOutOfReachBody = "Out of reach. Tap to fix."
+    public static let notifOutOfReachBody = "Out of reach. Open wonday to fix it."
+    // [proposal] Nudge voice + single-nudge status lines — needs review.
+    public static let wondayName = "wonday"
+    public static let nudgeGoingGood = "You're going good."
+    public static let nudgeBehind = "Time to move."
 
     // MARK: - Wonday welcome + onboarding (onboarding.txt)
     // Screen 0 — Welcome

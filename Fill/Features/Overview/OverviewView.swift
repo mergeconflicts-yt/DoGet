@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 
 // SPEC §7.2 — Overview (page 0): Challenges title, gear → Settings;
 // In progress + Completed sections, one band per challenge; empty state.
@@ -64,8 +65,10 @@ public struct OverviewView: View {
                     .padding(.horizontal, 20).padding(.top, 24)
             } else {
                 ForEach(items, id: \.element.id) { i, c in
-                    OverviewBand(challenge: c, snapshot: snapshots[c.id]) {
-                        onOpen(i)
+                    SwipeToGiveUp(challenge: c) {
+                        OverviewBand(challenge: c, snapshot: snapshots[c.id]) {
+                            onOpen(i)
+                        }
                     }
                 }
                 .padding(.horizontal, 16)
@@ -206,5 +209,68 @@ public struct OverviewBand: View {
         if snapshot?.done == true { return Copy.bandDone }
         if snapshot?.outOfReach == true || snapshot?.streakBroken == true { return Copy.bandFix }
         return Copy.bandPercent(pc)
+    }
+}
+
+// Swipe left on a band to reveal Give up (two taps, like Scrap).
+// Archived challenges keep their rewarded history (SPEC §8).
+struct SwipeToGiveUp<Content: View>: View {
+    var challenge: Challenge
+    @ViewBuilder var content: () -> Content
+    @Environment(\.modelContext) private var context
+    @Environment(AppState.self) private var app
+    @State private var offset: CGFloat = 0
+    @State private var open = false
+    @State private var confirm = false
+    private let reveal: CGFloat = 104
+
+    public var body: some View {
+        ZStack(alignment: .trailing) {
+            Button(confirm ? Copy.tapAgainToGiveUp : Copy.giveUp) { giveUp() }
+                .font(FillFont.scaled(15, weight: .bold)).foregroundStyle(.white)
+                .frame(width: reveal).frame(maxHeight: .infinity)
+                .background(FillColor.danger, in: RoundedRectangle(cornerRadius: 24))
+                .accessibilityLabel(confirm ? Copy.tapAgainToGiveUp : Copy.giveUp)
+            content()
+                .offset(x: offset)
+                .gesture(
+                    DragGesture(minimumDistance: 12)
+                        .onChanged { v in
+                            // Let vertical scrolling win over the swipe.
+                            guard abs(v.translation.width) > abs(v.translation.height) else { return }
+                            let base = open ? -reveal : 0
+                            offset = min(0, max(-reveal, base + v.translation.width))
+                        }
+                        .onEnded { v in
+                            guard abs(v.translation.width) > abs(v.translation.height) else {
+                                withAnimation(.easeOut(duration: 0.2)) { offset = open ? -reveal : 0 }
+                                return
+                            }
+                            withAnimation(.easeOut(duration: 0.2)) {
+                                open = v.translation.width < -reveal / 2
+                                offset = open ? -reveal : 0
+                                if !open { confirm = false }
+                            }
+                        }
+                )
+        }
+        // R03 pattern: a stray swipe must not leave the confirm armed.
+        .task(id: confirm) {
+            guard confirm else { return }
+            try? await Task.sleep(for: .seconds(3))
+            if !Task.isCancelled { confirm = false }
+        }
+    }
+
+    private func giveUp() {
+        if !confirm { confirm = true; return }
+        let id = challenge.id
+        if let r = (try? context.fetch(FetchDescriptor<ChallengeRecord>(
+            predicate: #Predicate { $0.id == id })))?.first {
+            r.archivedAt = Date()
+            try? context.save()
+        }
+        app.dataVersion += 1
+        app.showToast(Copy.toastGaveUp)
     }
 }

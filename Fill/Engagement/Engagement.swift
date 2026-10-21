@@ -119,13 +119,14 @@ public enum Notifications {
             .requestAuthorization(options: [.alert, .sound, .badge])
     }
 
-    // MARK: Nudges
+    // MARK: Nudges — ONE combined nudge per day (user override of the old
+    // per-challenge loop): the most behind eligible challenge speaks for all.
     @MainActor
     public static func reschedule(context: ModelContext, now: Date = Date(),
                                   calendar: Calendar = .current) async {
-        // Nudge: one calendar trigger per challenge per day at nudge time (ID
-        // "nudge.<id>.<day>"). Never for sleep; removed on win/done/OOR/broken;
-        // max 2/day (NotificationLog); quiet 22–07.
+        // Nudge: one calendar trigger per day at nudge time (ID "nudge.<day>").
+        // Never for sleep; removed on win/done/OOR/broken; max 1/day total;
+        // quiet 22–07.
         let center = UNUserNotificationCenter.current()
         let repo = Repository(context: context)
         let settings = repo.settings()
@@ -134,19 +135,18 @@ public enum Notifications {
         let pages = PageBuilder.build(context: context, now: now, calendar: calendar)
         let activeIDs = Set(pages.map { $0.challenge.id.uuidString })
 
-        // Remove pending nudges that no longer belong: scrapped challenges,
-        // old days, and challenges that are won/done/OOR/broken.
+        // Single ID for the combined nudge; anything else pending is stale.
+        let singleID = "nudge.\(today.key)"
+        let eligible = pages.filter {
+            nudgeEligible($0, now: now, hour: hour, minute: minute, calendar: calendar)
+        }
         let pending = await center.pendingNotificationRequests()
-        let keep = Set(pages.compactMap { p -> String? in
-            guard nudgeEligible(p, now: now, hour: hour, minute: minute, calendar: calendar) else { return nil }
-            return "nudge.\(p.challenge.id.uuidString).\(today.key)"
-        })
         let stale = pending.map(\.identifier).filter { id in
             guard id.hasPrefix("nudge.") else { return false }
+            if id == singleID { return false }
             let parts = id.split(separator: ".")
-            guard parts.count >= 3 else { return true }
-            let uuid = String(parts[1])
-            return !activeIDs.contains(uuid) || !keep.contains(id)
+            if parts.count >= 3 { return !activeIDs.contains(String(parts[1])) }
+            return true // legacy per-challenge IDs and anything unparseable
         }
         if !stale.isEmpty {
             center.removePendingNotificationRequests(withIdentifiers: stale)
@@ -154,24 +154,45 @@ public enum Notifications {
 
         let nudgeDate = calendar.date(bySettingHour: hour, minute: minute, second: 0, of: now) ?? now
         guard now < nudgeDate else { return } // already past today's nudge
+        guard let pick = mostBehind(eligible),
+              nudgeSentToday(context: context, day: today.key) == false,
+              let body = nudgeBody(challenge: pick.challenge, snap: pick.snapshot)
+        else { return }
+        let content = UNMutableNotificationContent()
+        content.title = Copy.nudgeTitle(pick.challenge.name,
+            remainingText(challenge: pick.challenge, todayValue: pick.snapshot.todayValue))
+        content.subtitle = Copy.wondayName
+        content.body = body
+        var comps = DateComponents()
+        comps.hour = hour; comps.minute = minute
+        let req = UNNotificationRequest(identifier: singleID, content: content,
+                                        trigger: UNCalendarNotificationTrigger(dateMatching: comps, repeats: false))
+        try? await center.add(req)
+        logKind(context: context, challengeID: pick.challenge.id, day: today.key, kind: "nudge")
+    }
 
-        for p in pages {
-            guard nudgeEligible(p, now: now, hour: hour, minute: minute, calendar: calendar),
-                  sentCount(context: context, challengeID: p.challenge.id, day: today.key) < 2,
-                  let body = nudgeBody(challenge: p.challenge, snap: p.snapshot)
-            else { continue }
-            let content = UNMutableNotificationContent()
-            content.title = Copy.nudgeTitle(p.challenge.name,
-                remainingText(challenge: p.challenge, todayValue: p.snapshot.todayValue))
-            content.body = body
-            var comps = DateComponents()
-            comps.hour = hour; comps.minute = minute
-            let id = "nudge.\(p.challenge.id.uuidString).\(today.key)"
-            let req = UNNotificationRequest(identifier: id, content: content,
-                                            trigger: UNCalendarNotificationTrigger(dateMatching: comps, repeats: false))
-            try? await center.add(req)
-            logKind(context: context, challengeID: p.challenge.id, day: today.key, kind: "nudge")
+    /// Lowest progress fraction first — the most behind challenge nudges.
+    private static func mostBehind(_ pages: [PageData]) -> PageData? {
+        pages.min { progressFraction($0) < progressFraction($1) }
+    }
+
+    private static func progressFraction(_ p: PageData) -> Double {
+        switch p.challenge.type {
+        case .flex, .streak:
+            guard p.challenge.x > 0 else { return 1 }
+            return Double(p.snapshot.wins) / Double(p.challenge.x)
+        case .once:
+            guard p.challenge.target > 0 else { return 1 }
+            return min(1, p.snapshot.best / p.challenge.target)
+        case .open:
+            return p.snapshot.wins > 0 ? 1 : 0
         }
+    }
+
+    private static func nudgeSentToday(context: ModelContext, day: String) -> Bool {
+        let d = FetchDescriptor<NotificationLog>(
+            predicate: #Predicate { $0.dayKey == day && $0.kindRaw == "nudge" })
+        return !((try? context.fetch(d)) ?? []).isEmpty
     }
 
     private static func nudgeEligible(_ p: PageData, now: Date, hour: Int, minute: Int,
@@ -199,6 +220,7 @@ public enum Notifications {
             guard !hasKind(context: context, challengeID: challengeID, day: day.key, kind: kind) else { return }
             let content = UNMutableNotificationContent()
             content.title = title
+            content.subtitle = Copy.wondayName
             content.body = body
             let trigger: UNNotificationTrigger?
             if quiet {
@@ -291,6 +313,7 @@ public enum Notifications {
     }
 
     /// Nudge body per metric (SPEC §10). Steps → minutes walking (left÷100, up to 5).
+    /// Prefixed by status mood: going good vs behind, always wonday-flavored.
     public static func nudgeBody(challenge: Challenge, snap: Snapshot) -> String? {
         if challenge.metric == .sleep { return nil } // N05
         let left = max(0, challenge.target - snap.todayValue)
@@ -306,20 +329,38 @@ public enum Notifications {
             }
             return Copy.nudgeWinDay
         }()
-        switch challenge.metric {
-        case .steps:
-            let mins = Int(((left / 100).rounded(.up) / 5).rounded(.up) * 5)
-            return Copy.nudgeSteps(minutes: mins, win: win)
-        case .run:
-            return Copy.nudgeRun(target: Format.metric(challenge.target, metric: .run), win: win)
-        case .rings:
-            return Copy.nudgeRings(win: win)
-        case .exercise:
-            return Copy.nudgeExercise(left: Int(left), win: win)
-        case .calories:
-            return Copy.nudgeCalories(left: Int(left), win: win)
-        case .sleep:
-            return nil
+        let line: String? = {
+            switch challenge.metric {
+            case .steps:
+                let mins = Int(((left / 100).rounded(.up) / 5).rounded(.up) * 5)
+                return Copy.nudgeSteps(minutes: mins, win: win)
+            case .run:
+                return Copy.nudgeRun(target: Format.metric(challenge.target, metric: .run), win: win)
+            case .rings:
+                return Copy.nudgeRings(win: win)
+            case .exercise:
+                return Copy.nudgeExercise(left: Int(left), win: win)
+            case .calories:
+                return Copy.nudgeCalories(left: Int(left), win: win)
+            case .sleep:
+                return nil
+            }
+        }()
+        guard let line else { return nil }
+        let mood = goingGood(challenge: challenge, snap: snap)
+            ? Copy.nudgeGoingGood : Copy.nudgeBehind
+        return "\(mood) \(line) Make it a wonday."
+    }
+
+    /// Status for the nudge voice: at least halfway = going good.
+    private static func goingGood(challenge: Challenge, snap: Snapshot) -> Bool {
+        switch challenge.type {
+        case .flex, .streak:
+            return challenge.x > 0 && snap.wins * 2 >= challenge.x
+        case .once:
+            return snap.best > 0 && snap.best * 2 >= challenge.target
+        case .open:
+            return snap.wins > 0
         }
     }
 }
