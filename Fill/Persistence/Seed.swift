@@ -54,4 +54,21 @@ public enum Seed {
            reward: Reward(kind: .item, category: .item, name: "Shoes", value: 12_000, itemPayout: .end))
         try? context.save()
     }
+
+    /// DEBUG-only: one simple challenge per palette color, so every colorway
+    /// can be swiped through. Skips when samples already exist.
+    public static func insertColorSamples(into context: ModelContext) {
+        let repo = Repository(context: context)
+        let existing = Set(repo.fetchActiveChallenges().map(\.name))
+        let today = DayKey.from(date: Date(), calendar: .current)
+        for token in ChallengePalette.tokens {
+            let name = "\(token.capitalized) 10K"
+            guard !existing.contains(name) else { continue }
+            let c = Challenge(name: name, colorToken: token, metric: .steps, target: 10_000,
+                               type: .flex, x: 20, y: 30, start: today,
+                               reward: .moneyEach(amount: 1_000))
+            repo.insertChallenge(c)
+        }
+        try? context.save()
+    }
 }

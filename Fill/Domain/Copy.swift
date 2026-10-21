@@ -417,7 +417,8 @@ public enum Copy {
     // MARK: - Share (proposal — no SPEC/COPY source; flagged for product review)
     public static let share = "Share"
     public static let shareAppLink = "https://wonday.kranehx.com/"
-    public static func shareText(name: String, progress: String, reward: String) -> String {
-        "\(name): \(progress) to win \(reward)."
+    // [proposal] First-person share line — no SPEC source, needs review.
+    public static func shareChallenge(sentence: String, progress: String) -> String {
+        "Look at my challenge: \(sentence). \(progress)!"
     }
 }

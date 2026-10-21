@@ -80,6 +80,7 @@ public struct DebugMenuView: View {
             Button("Apple Health on/off") { toggleHealth() }
             Button("Replay onboarding") { replay() }
             Button("Seed demo data") { Seed.insert(into: context) }
+            Button("Seed one per color") { Seed.insertColorSamples(into: context) }
             Button("Advance clock +1 day") { app.debugAdvanceDays += 1 }
         }
     }

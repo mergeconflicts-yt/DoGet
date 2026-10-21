@@ -24,58 +24,35 @@ public enum ChallengeShare {
     }
 
     public static func text(challenge: Challenge, snapshot: Snapshot) -> String {
-        Copy.shareText(
-            name: challenge.name,
-            progress: progressLine(challenge: challenge, snapshot: snapshot),
-            reward: Derive.rewardPhrase(challenge.reward, x: challenge.x)
+        Copy.shareChallenge(
+            sentence: sentence(challenge: challenge),
+            progress: progressLine(challenge: challenge, snapshot: snapshot)
         )
     }
 
-    @MainActor public static func makeImage(challenge: Challenge, snapshot: Snapshot) -> UIImage? {
-        let card = ShareCardView(challenge: challenge, snapshot: snapshot)
-        let renderer = ImageRenderer(content: card)
-        renderer.scale = 3
-        renderer.proposedSize = ProposedViewSize(width: 600, height: 800)
-        return renderer.uiImage
-    }
-}
-
-// Lightweight card rendered to an image for sharing. Static, no animation,
-// so Reduce Motion needs no special path. Fixed 600x800 for a stable image.
-public struct ShareCardView: View {
-    var challenge: Challenge
-    var snapshot: Snapshot
-
-    public init(challenge: Challenge, snapshot: Snapshot) {
-        self.challenge = challenge
-        self.snapshot = snapshot
-    }
-
-    public var body: some View {
-        let c = FillColor.color(for: challenge.colorToken)
-        VStack(alignment: .leading, spacing: 12) {
-            Text(challenge.name)
-                .font(FillFont.scaled(34, weight: .heavy, relativeTo: .title1))
-                .foregroundStyle(.white)
-                .lineLimit(2)
-            Text(ChallengeShare.progressLine(challenge: challenge, snapshot: snapshot))
-                .font(FillFont.scaled(20, weight: .bold))
-                .foregroundStyle(.white)
-            Text(Derive.rewardPhrase(challenge.reward, x: challenge.x))
-                .font(FillFont.scaled(16, weight: .semibold))
-                .foregroundStyle(.white.opacity(0.9))
-                .lineLimit(3)
-            Spacer(minLength: 0)
-            HStack(spacing: 6) {
-                WondayWord(size: 20, color: .white)
-                Text("· \(Copy.shareAppLink)")
-                    .font(FillFont.mono(12))
-                    .foregroundStyle(.white.opacity(0.9))
+    /// "I'll walk 10,000 steps a day on 20 of 30 days to win 10,000 bucks each time"
+    public static func sentence(challenge: Challenge) -> String {
+        let target = Format.metric(challenge.target, metric: challenge.metric)
+        let act: String = {
+            switch challenge.metric {
+            case .steps: return Copy.actSteps(target)
+            case .rings: return Copy.actRings("\(Int(challenge.target))")
+            case .exercise: return Copy.actExercise("\(Int(challenge.target))")
+            case .run: return Copy.actRun(target)
+            case .sleep: return Copy.actSleep(target)
+            case .calories: return Copy.actCalories("\(Int(challenge.target))")
             }
-        }
-        .padding(32)
-        .frame(width: 600, height: 800, alignment: .topLeading)
-        .background(c)
+        }()
+        let rule: String = {
+            switch challenge.type {
+            case .flex: return Copy.createRuleFlex(challenge.x, challenge.y)
+            case .streak: return Copy.createRuleStreak(challenge.x)
+            case .once: return Copy.createRuleOnce
+            case .open: return Copy.createRuleOpen
+            }
+        }()
+        let reward = Derive.rewardPhrase(challenge.reward, x: challenge.x)
+        return "I'll \(act) \(MetricDefaults.suffix(for: challenge.metric)) \(rule) to win \(reward)"
     }
 }
 

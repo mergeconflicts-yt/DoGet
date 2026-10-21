@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import SwiftData
 
 // SPEC §7.3 — Challenge page. DESIGN §4 layout (393×852, scaled by height/852):
@@ -111,10 +112,22 @@ public struct ChallengePageView: View {
     private func share() {
         var items: [Any] = [ChallengeShare.text(challenge: challenge, snapshot: snapshot),
                             ChallengeShare.appURL]
-        if let image = ChallengeShare.makeImage(challenge: challenge, snapshot: snapshot) {
+        if let image = pageImage() {
             items.insert(image, at: 0)
         }
         sharePayload = SharePayload(items: items)
+    }
+
+    /// Exact copy of this goal progress screen, rendered offscreen on tap.
+    private func pageImage() -> UIImage? {
+        let page = ChallengePageView(challenge: challenge, snapshot: snapshot,
+                                      dayStates: dayStates, manualMode: manualMode)
+            .environment(app)
+            .environment(\.modelContext, context)
+        let renderer = ImageRenderer(content: page)
+        renderer.scale = 3
+        renderer.proposedSize = ProposedViewSize(width: 393, height: 852)
+        return renderer.uiImage
     }
     private func pillText() -> String {
         if snapshot.outOfReach { return Copy.outOfReach }

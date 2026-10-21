@@ -23,28 +23,35 @@ public struct ActivityPill: View {
 }
 
 // Bottom bar: left pill (Challenges) + round + button.
+// On a challenge page pass that page's color as tint: white buttons with
+// tinted glyphs so the bar picks up the background; Overview uses ink.
 public struct BottomBar: View {
     var pageLabel: String
+    var tint: Color? = nil
     var onAll: () -> Void
     var onAdd: () -> Void
     public var body: some View {
+        let bg: Color = tint == nil ? FillColor.ink : .white
+        let fg: Color = tint ?? .white
         HStack {
             Button(action: onAll) {
                 HStack(spacing: 6) {
                     Image(systemName: "square.grid.2x2")
                     Text(pageLabel).font(FillFont.scaled(14, weight: .semibold))
                 }
-                .foregroundStyle(.white)
+                .foregroundStyle(fg)
                 .padding(.horizontal, 14).padding(.vertical, 12)
-                .background(FillColor.ink, in: Capsule())
+                .background(bg, in: Capsule())
+                .shadow(color: FillColor.shadow.opacity(tint == nil ? 0 : 0.15), radius: 8, y: 4)
             }
             .accessibilityLabel(Copy.overviewAllChallenges)
             Spacer()
             Button(action: onAdd) {
                 Image(systemName: "plus").font(FillFont.scaled(24, weight: .bold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(fg)
                     .frame(width: 60, height: 60)
-                    .background(FillColor.ink, in: Circle())
+                    .background(bg, in: Circle())
+                    .shadow(color: FillColor.shadow.opacity(tint == nil ? 0 : 0.15), radius: 8, y: 4)
             }
             .accessibilityLabel(Copy.newChallengeLabel)
         }

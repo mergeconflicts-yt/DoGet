@@ -34,8 +34,9 @@ public struct PagerView: View {
             .tabViewStyle(.page(indexDisplayMode: .never))
             BottomBar(pageLabel: app.selectedPage == 0 ? Copy.allChallenges :
                         "\(Copy.allChallenges) \(app.selectedPage)/\(pages.count)",
-                      onAll: { app.selectedPage = 0 },
-                      onAdd: { app.showingCreate = true })
+                       tint: barTint,
+                       onAll: { app.selectedPage = 0 },
+                       onAdd: { app.showingCreate = true })
         }
         .onAppear {
             pages = PageBuilder.build(context: context, now: app.now)
@@ -58,6 +59,11 @@ public struct PagerView: View {
 
     /// Full-screen backdrop in the current page's bottom colour, so the
     /// home-indicator zone is one continuous section with the page's fill.
+    /// The floating bar tints to the same page colour (ink on Overview).
+    private var barTint: Color? {
+        guard app.selectedPage >= 1, app.selectedPage <= pages.count else { return nil }
+        return FillColor.color(for: pages[app.selectedPage - 1].challenge.colorToken)
+    }
     @ViewBuilder private var pageBackdrop: some View {
         if app.selectedPage >= 1, app.selectedPage <= pages.count {
             let p = pages[app.selectedPage - 1]
