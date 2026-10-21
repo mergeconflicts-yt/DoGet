@@ -1,24 +1,19 @@
 import Foundation
 
 public enum Format {
-    private static var inr: NumberFormatter {
+    private static var bucksNumber: NumberFormatter {
         let f = NumberFormatter()
         f.locale = Locale(identifier: "en-IN")
-        f.numberStyle = .currency
-        f.currencyCode = "INR"
+        f.numberStyle = .decimal
         f.maximumFractionDigits = 0
         return f
     }
 
+    /// Neutral bucks, no currency symbols anywhere. The currency param is kept
+    /// only so stored rewards (incl. the USD seed) keep compiling; it is ignored.
     public static func money(_ v: Decimal, currency: String = "INR") -> String {
-        if currency == "INR" {
-            return inr.string(from: v as NSDecimalNumber) ?? "₹\(v)"
-        }
-        let f = NumberFormatter()
-        f.numberStyle = .currency
-        f.currencyCode = currency
-        f.maximumFractionDigits = 0
-        return f.string(from: v as NSDecimalNumber) ?? "\(currency) \(v)"
+        let n = bucksNumber.string(from: v as NSDecimalNumber) ?? "\(v)"
+        return "\(n) bucks"
     }
 
     /// Metric values: whole with grouping, except run/sleep 1 decimal.

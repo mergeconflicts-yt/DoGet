@@ -464,20 +464,40 @@ public struct ChallengePageView: View {
         HStack(alignment: .top) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(left).font(FillFont.mono(10)).foregroundStyle(.white.opacity(0.7))
-                Text(leftValue).font(FillFont.footValue).monospacedDigit().foregroundStyle(.white)
-                    .lineLimit(1).minimumScaleFactor(0.7)
+                footerValue(leftValue, alignment: .leading)
             }
             Spacer()
             if let right, let rightValue {
                 VStack(alignment: .trailing, spacing: 2) {
                     Text(right).font(FillFont.mono(10)).foregroundStyle(.white.opacity(0.7))
-                    Text(rightValue).font(FillFont.footValue).monospacedDigit().foregroundStyle(.white)
-                        .lineLimit(1).minimumScaleFactor(0.7)
+                    footerValue(rightValue, alignment: .trailing)
                 }
             }
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(left) \(leftValue)\(right.map { ", \($0) \(rightValue ?? "")" } ?? "")")
+    }
+
+    private func footerValue(_ s: String, alignment: HorizontalAlignment) -> some View {
+        // "90,000 bucks" -> number big, bucks small so EARNED / NEXT WIN fit.
+        if s.hasSuffix(" bucks") {
+            let number = String(s.dropLast(" bucks".count))
+            return AnyView(
+                HStack(alignment: .lastTextBaseline, spacing: 4) {
+                    if alignment == .trailing { Spacer(minLength: 0) }
+                    Text(number).font(FillFont.footValue).monospacedDigit().foregroundStyle(.white)
+                        .lineLimit(1).minimumScaleFactor(0.6)
+                    Text("bucks").font(FillFont.mono(11)).foregroundStyle(.white.opacity(0.8))
+                        .lineLimit(1)
+                    if alignment == .leading { Spacer(minLength: 0) }
+                }
+            )
+        }
+        return AnyView(
+            Text(s).font(FillFont.footValue).monospacedDigit().foregroundStyle(.white)
+                .lineLimit(1).minimumScaleFactor(0.7)
+                .frame(maxWidth: .infinity, alignment: alignment == .trailing ? .trailing : .leading)
+        )
     }
 
     /// No-end item "I'm done" (SPEC §6): closed date set → done → celebration.

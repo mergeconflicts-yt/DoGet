@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import UIKit
 
 // SPEC §7.9 — Log today (manual mode): stepper (tap to type),
 // 50% / 80% / Goal-reached chips, honesty note, connect-health, Save.
@@ -109,10 +110,23 @@ public struct LogTodayView: View {
             }
         }
     }
-    /// M04: Health prompt / Settings path; manual mode off on success.
+    /// M04: Health prompt / Health app path; manual mode off only on success.
     private func connectHealth() {
+        // Already denied once: iOS won't show the sheet again — open the
+        // Health app so categories can be turned on. Stay put, keep manual.
+        if HealthKitController.shared.hasBeenAsked,
+           !HealthKitController.shared.isAuthorized {
+            if let healthURL = URL(string: "x-apple-health://"),
+               UIApplication.shared.canOpenURL(healthURL) {
+                UIApplication.shared.open(healthURL)
+            } else if let url = URL(string: UIApplication.openSettingsURLString) {
+                UIApplication.shared.open(url)
+            }
+            return
+        }
         Task { @MainActor in
-            _ = await HealthKitController.shared.authorize()
+            let granted = await HealthKitController.shared.authorize()
+            guard granted else { return }
             Repository(context: context).settings().manualMode = false
             try? context.save()
             await Evaluator.shared.refresh(context: context, app: app, now: app.now)

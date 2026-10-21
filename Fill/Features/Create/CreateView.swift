@@ -494,14 +494,14 @@ public struct CreateView: View {
         model.draft.moneyPayout == .end ? 5_000 : 500
     }
     private func moneyPresets() -> [Decimal] {
-        // SPEC §7.6: per-win ₹500/₹1K/₹10K; end ₹25K/₹50K/₹1L.
+        // Per-win 500/1K/10K; end 25K/50K/1L — plain, no currency symbols.
         model.draft.moneyPayout == .end ? [25_000, 50_000, 100_000] : [500, 1_000, 10_000]
     }
     private func shortMoney(_ v: Decimal) -> String {
         let n = (v as NSDecimalNumber).intValue
-        if n >= 100_000 { return "₹\(n / 100_000)L" }
-        if n >= 1_000 { return "₹\(n / 1_000)K" }
-        return "₹\(n)"
+        if n >= 100_000 { return "\(n / 100_000)L" }
+        if n >= 1_000 { return "\(n / 1_000)K" }
+        return "\(n)"
     }
 
     private var itemPanel: some View {

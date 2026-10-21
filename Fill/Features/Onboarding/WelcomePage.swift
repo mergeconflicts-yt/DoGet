@@ -23,7 +23,7 @@ struct WelcomePage: View {
     private static let examples: [Example] = [
         .init(color: "orange", pill: "STEPS", icon: "shoeprints.fill",
               targetValue: 10_000, target: "10,000", unit: "steps",
-              targetText: "of 10,000 steps", reward: "₹10,000", decimals: 0),
+              targetText: "of 10,000 steps", reward: "10,000 bucks", decimals: 0),
         .init(color: "pink", pill: "RINGS", icon: "circle.circle",
               targetValue: 3, target: "3", unit: "rings",
               targetText: "of 3 rings", reward: "A trip to Taiwan", decimals: 0),

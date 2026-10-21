@@ -214,7 +214,7 @@ public struct ShotHost: View {
                 CelebrationView(challenge: ShotMode.doneChallenge().0,
                                 snapshot: ShotMode.doneChallenge().1)
             case "daywon":
-                DayWonView(colorToken: "green", amountText: "+₹1,000",
+                DayWonView(colorToken: "green", amountText: "+1,000 bucks",
                            subText: "Savings jar · 87 wins")
             case "logtoday":
                 LogTodayView(metric: .steps, target: 10_000, colorToken: "orange")

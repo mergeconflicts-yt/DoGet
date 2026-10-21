@@ -303,8 +303,8 @@ struct EngineTests {
         #expect(DayKey.from(date: after, calendar: london) == b)
     }
     @Test func test_Format_INR() {
-        #expect(Format.money(100_000) == "₹1,00,000")
-        #expect(Format.money(90_000) == "₹90,000")
+        #expect(Format.money(100_000) == "1,00,000 bucks")
+        #expect(Format.money(90_000) == "90,000 bucks")
     }
 
     // MARK: - Create validation (C01, C09–C11)
