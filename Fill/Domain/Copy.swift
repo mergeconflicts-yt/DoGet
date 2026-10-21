@@ -65,7 +65,7 @@ public enum Copy {
 
     // Hero lines (COPY.md §3) and goal-line labels.
     public static func heroFlexActive(need: Int, daysLeft: Int) -> String {
-        "\(need) wins to go in \(daysLeft) days"
+        "Need \(need) wins in \(daysLeft) days"
     }
     public static func heroFlexDone(_ x: Int) -> String { "\(x) wins · done" }
     public static func heroStreakActive(need: Int) -> String { "\(need) days to go" }
@@ -88,6 +88,10 @@ public enum Copy {
 
     public static func todayToGo(_ remaining: String) -> String { "TODAY · \(remaining) TO GO" }
     public static func todayWonByHand() -> String { todayWon + byHand }
+    // [proposal] Manual won pill — no "manually", goal + target instead.
+    public static func todayGoalAchieved(_ target: String) -> String {
+        "TODAY · GOAL ACHIEVED · \(target)"
+    }
 
     public static func logValue(_ value: String, _ target: String) -> String { "\(value) / \(target)" }
     public static func logHint(_ unit: String) -> String { "Log today's \(unit)" }

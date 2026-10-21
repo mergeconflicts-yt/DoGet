@@ -24,7 +24,6 @@ public struct ChallengePageView: View {
             let scale = g.size.height / 852
             let fb = (196 + 384 * snapshot.base) * scale
             let lh = snapshot.layer > 0 ? max(30, 384 * snapshot.layer) * scale : 0
-            let fh = fb + lh
             let rescue = snapshot.outOfReach || snapshot.streakBroken
             ZStack(alignment: .bottom) {
                 FillColor.surface.ignoresSafeArea()
@@ -33,9 +32,14 @@ public struct ChallengePageView: View {
                     .opacity(rescue ? 0.45 : 1)
                 VStack(alignment: .leading, spacing: 0) {
                     headerRow.padding(.top, g.safeAreaInsets.top + 8 * scale)
-                    Text(challenge.name).font(FillFont.pageTitle)
-                        .padding(.horizontal, 20).padding(.top, 4)
-                        .accessibilityAddTraits(.isHeader)
+                    HStack(alignment: .center, spacing: 12) {
+                        Text(challenge.name).font(FillFont.scaled(24, weight: .heavy, relativeTo: .title1))
+                            .lineLimit(1).minimumScaleFactor(0.7).truncationMode(.tail)
+                            .accessibilityAddTraits(.isHeader)
+                        Spacer(minLength: 12)
+                        if showHeroLog { heroLogPill }
+                    }
+                    .padding(.horizontal, 20).padding(.top, 4)
                     Text(ruleLine()).font(FillFont.scaled(13, weight: .bold))
                         .foregroundStyle(FillColor.text3)
                         .padding(.horizontal, 20).padding(.top, 2)
@@ -47,25 +51,17 @@ public struct ChallengePageView: View {
                     }
                     goalLine.padding(.horizontal, 20)
                         .padding(.top, (challenge.type == .once ? 78 : 38) * scale)
+                    // Hero sits right under the target (goal) line.
+                    heroBlock(inFill: heroInsideFill)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 20)
+                        .padding(.top, 16 * scale)
                     if showFirstWin {
-                        // Above the fill: always ink-on-white, even when the
-                        // fill runs high (One-time best with no wins yet).
-                        heroBlock(inFill: false)
-                            .padding(.horizontal, 20)
-                            .padding(.top, 30 * scale)
                         firstWinCard.padding(.top, 22 * scale)
                     }
                     Spacer(minLength: 0)
                 }
-                // Hero: inside the fill (white) when high, else just above it.
-                // On an empty page it lives above the first-win card instead.
-                if !showFirstWin {
-                    heroBlock(inFill: heroInsideFill)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, 20)
-                        .padding(.bottom, heroBottom(fh: fh, scale: scale))
-                }
-                if showTodayPill {
+                if showBandPill {
                     todayPill()
                         .padding(.bottom, max(0, fb + lh / 2 - 12 * scale))
                         .padding(.trailing, 20)
@@ -134,21 +130,18 @@ public struct ChallengePageView: View {
         }
     }
     private func dayText() -> String {
-        var t: String
         if challenge.claimed && snapshot.done {
-            t = Copy.claimed
+            return Copy.claimed
         } else if snapshot.done {
-            t = Derive.typeName(challenge.type) + Copy.finishedSuffix
+            return Derive.typeName(challenge.type) + Copy.finishedSuffix
         } else {
             switch challenge.type {
-            case .flex: t = Copy.dayFlex(snapshot.dayIndex + 1, of: challenge.y)
-            case .streak: t = Copy.dayStreak(snapshot.wins + 1, of: challenge.x)
-            case .once: t = Copy.anyDay
-            case .open: t = Copy.dayOpen(snapshot.wins)
+            case .flex: return Copy.dayFlex(snapshot.dayIndex + 1, of: challenge.y)
+            case .streak: return Copy.dayStreak(snapshot.wins + 1, of: challenge.x)
+            case .once: return Copy.anyDay
+            case .open: return Copy.dayOpen(snapshot.wins)
             }
         }
-        if manualMode { t += " \(Copy.byHandShort)" }
-        return t
     }
     private func ruleLine() -> String {
         switch challenge.type {
@@ -210,9 +203,9 @@ public struct ChallengePageView: View {
     // MARK: fill (gel base from the bottom + today band on top)
     private func fillStack(scale: CGFloat, fb: CGFloat, lh: CGFloat) -> some View {
         let c = FillColor.color(for: challenge.colorToken)
-        // DESIGN §5/§6: no wave under the today stripes or once the page is
-        // done; Reduce Motion makes the fill flat.
-        let wave = !snapshot.done && !snapshot.todayWon && snapshot.layer == 0
+        // Wave stays on under the today band too (only done/won go flat);
+        // Reduce Motion makes the fill flat.
+        let wave = !snapshot.done && !snapshot.todayWon
         return VStack(spacing: 0) {
             if lh > 0 {
                 ZStack(alignment: .top) {
@@ -228,14 +221,7 @@ public struct ChallengePageView: View {
 
     // MARK: hero (white inside the fill when it fills most of the page,
     // else ink just above it)
-    // The hero floats just above the fill top; the today pill sits inside
-    // the fill top, so no extra clearance for it.
-    private func heroBottom(fh: CGFloat, scale: CGFloat) -> CGFloat {
-        if heroInsideFill { return max(0, fh - 140 * scale) }
-        // DESIGN §4: leave room for the today pill (+54, same in manual).
-        let clearance: CGFloat = showTodayPill ? 54 : 0
-        return fh + (16 + clearance) * scale
-    }
+    // The hero sits under the target line; white once the fill runs high.
     private var heroInsideFill: Bool {
         let fb = 196 + 384 * snapshot.base
         let lh = snapshot.layer > 0 ? max(30, 384 * snapshot.layer) : 0
@@ -251,11 +237,27 @@ public struct ChallengePageView: View {
                     .foregroundStyle(inFill ? .white : FillColor.ink)
             }
             .lineLimit(1)
-            Text(heroLine()).font(FillFont.remaining)
-                .foregroundStyle(inFill ? .white : FillColor.ink)
+            heroLineView(inFill: inFill)
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(heroNumber()) \(heroUnit()). \(heroLine())")
+    }
+
+    private func heroLineView(inFill: Bool) -> Text {
+        let color = inFill ? Color.white : FillColor.ink
+        let numberColor = inFill ? Color.white : FillColor.color(for: challenge.colorToken)
+        // Flex active: "Need X wins in Y days" — numbers bold in hero color.
+        if case .flex = challenge.type,
+           !snapshot.done, !snapshot.outOfReach, snapshot.streakBrokenOnDay == nil {
+            return (Text("Need ")
+                .font(FillFont.scaled(21)).foregroundStyle(color) + Text("\(snapshot.need)")
+                .font(FillFont.scaled(21, weight: .bold)).foregroundStyle(numberColor) + Text(" wins in ")
+                .font(FillFont.scaled(21)).foregroundStyle(color) + Text("\(snapshot.daysLeft)")
+                .font(FillFont.scaled(21, weight: .bold)).foregroundStyle(numberColor) + Text(" days")
+                .font(FillFont.scaled(21)).foregroundStyle(color))
+        }
+        return Text(heroLine()).font(FillFont.remaining)
+            .foregroundStyle(color)
     }
     private func heroNumber() -> String {
         switch challenge.type {
@@ -323,39 +325,43 @@ public struct ChallengePageView: View {
     }
 
     // MARK: today pill (SPEC §7.3 item 9)
-    // Manual mode uses the same white pill, tappable to log.
+    // Today stays on the band; only the manual log action moves up.
     private var showTodayPill: Bool {
         challenge.type != .once && !snapshot.done && !snapshot.outOfReach
             && !snapshot.streakBroken
     }
+    /// Manual: LOG MANUALLY pill always stays up (even after a win).
+    /// The TODAY pill stays on the band.
+    private var showHeroLog: Bool { showTodayPill && manualMode }
+    private var showBandPill: Bool { showTodayPill }
+    private var heroLogPill: some View {
+        return Button(action: openLogToday) {
+            Text(Copy.logManually)
+                .font(FillFont.mono(10.5)).foregroundStyle(FillColor.color(for: challenge.colorToken))
+                .padding(.horizontal, 12).padding(.vertical, 8)
+                .background(.white, in: Capsule())
+                .shadow(color: FillColor.shadow.opacity(0.12), radius: 6, y: 6)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(Copy.logManually)
+    }
     private func todayPill() -> some View {
         let text = todayPillText
-        if manualMode && !snapshot.todayWon {
-            return AnyView(Button(action: openLogToday) {
-                Text(text)
-                    .font(FillFont.mono(10.5)).foregroundStyle(FillColor.color(for: challenge.colorToken))
-                    .padding(.horizontal, 12).padding(.vertical, 8)
-                    .background(.white, in: Capsule())
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(text))
-        }
-        return AnyView(Text(text)
+        return Text(text)
             .font(FillFont.mono(10.5)).foregroundStyle(FillColor.color(for: challenge.colorToken))
             .padding(.horizontal, 12).padding(.vertical, 8)
             .background(.white, in: Capsule())
-            .accessibilityLabel(text))
+            .lineLimit(1).minimumScaleFactor(0.7)
+            .accessibilityLabel(text)
     }
     private var todayPillText: String {
         guard snapshot.todayWon else {
-            let base = Copy.todayToGo(Notifications.remainingText(challenge: challenge,
-                                                                  todayValue: snapshot.todayValue))
-            if manualMode { return "\(base) · \(Copy.logManually)" }
-            return base
+            return Copy.todayToGo(Notifications.remainingText(challenge: challenge,
+                                                              todayValue: snapshot.todayValue))
         }
-        if snapshot.dayIndex < dayStates.count,
-           case .won(let manual) = dayStates[snapshot.dayIndex], manual {
-            return Copy.todayWonByHand()
+        if manualMode {
+            let target = "\(Format.metric(challenge.target, metric: challenge.metric)) \(MetricDefaults.unit(for: challenge.metric).uppercased())"
+            return Copy.todayGoalAchieved(target)
         }
         return Copy.todayWon
     }
@@ -367,9 +373,8 @@ public struct ChallengePageView: View {
 
     // MARK: first-win card (DESIGN §4: top = RT + 34)
     // One-time challenges never show it: a single attempt has no first win.
-    private var showFirstWin: Bool {
-        challenge.type != .once && snapshot.wins == 0 && !snapshot.done && !snapshot.outOfReach && !snapshot.streakBroken
-    }
+    // PREVIEW: disabled to see the page without the box (revert to re-enable).
+    private var showFirstWin: Bool { false }
     private var firstWinCard: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(Copy.firstWin).font(FillFont.mono(11))

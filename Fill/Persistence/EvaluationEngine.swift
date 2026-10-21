@@ -82,6 +82,14 @@ public enum EvaluationEngine {
         for m in manualRows where m.dayKey <= today.key {
             manualVals["\(m.metricRaw)|\(m.dayKey)"] = m.value
         }
+        // Manual mode (Health off): a manually logged day is final — a win is
+        // never taken back and no Health fetch will overwrite it.
+        let manualMode = repo.settings().manualMode
+        if manualMode {
+            for key in manualVals.keys {
+                finals.insert(key)
+            }
+        }
 
         return records.compactMap { rec in
             guard let c = toChallenge(rec) else { return nil }
