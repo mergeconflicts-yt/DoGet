@@ -122,7 +122,8 @@ h1,h2{font-weight:900;letter-spacing:-.045em;line-height:.95;font-size:clamp(56p
 .walk-count small{display:block;font-size:12px;font-weight:600;color:#7A808C}
 .walk-bottom{padding:0 0 26px;position:relative;z-index:2}
 .holdbtn{width:92px;height:92px;border-radius:50%;background:var(--ink);color:#fff;border:none;font-size:28px;position:relative;cursor:pointer;touch-action:none;transition:background .3s}
-.holdbtn .feet{filter:brightness(0) invert(1);transition:filter .3s}
+.holdbtn .feet{display:inline-flex;color:#fff;transition:color .3s}
+.holdbtn .feet svg{display:block}
 .holdbtn .pulse{position:absolute;inset:-10px;border:3px solid var(--ink);border-radius:50%;opacity:.4;animation:pulse 1.6s infinite}
 @keyframes pulse{to{transform:scale(1.15);opacity:0}}
 .holdlabel{font-size:12px;font-weight:600;margin-top:8px;color:#5C626E}

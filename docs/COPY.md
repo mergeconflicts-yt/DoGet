@@ -366,7 +366,14 @@ These had no line in SPEC or the mockups. **[proposal]** — review before relea
 | `onb.privacy.title` | Private by design. |
 | `onb.privacy.body` | No sign-up, no account, no server. Everything stays on this iPhone. |
 | `onb.health.title` | Connect Apple Health |
+| `onb.health.allow` | Allow Apple Health **[proposal]** (primary button; title stays `Connect Apple Health`) |
 | `onb.health.body` | The app reads your activity on this iPhone to check your challenges. It never uploads, writes or shares your data. |
+| `onb.health.why1t` | Checks your goal for you **[proposal]** |
+| `onb.health.why1s` | Wins are counted automatically. No need to log by hand. **[proposal]** |
+| `onb.health.why2t` | Read-only **[proposal]** |
+| `onb.health.why2s` | Never writes to Apple Health. **[proposal]** |
+| `onb.health.why3t` | Stays on this iPhone **[proposal]** |
+| `onb.health.why3s` | No sign-up, no account, no server. **[proposal]** |
 | `onb.health.steps` | Steps |
 | `onb.health.rings` | Activity rings |
 | `onb.health.exercise` | Exercise minutes |

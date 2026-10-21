@@ -15,7 +15,7 @@ public struct ChallengePageView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var bandPulse = true
-    @State private var logRing = false
+    @State private var sharePayload: SharePayload?
 
     public enum DayState: Equatable { case won(manual: Bool), missed, today(ratio: Double), future }
 
@@ -65,18 +65,7 @@ public struct ChallengePageView: View {
                         .padding(.horizontal, 20)
                         .padding(.bottom, heroBottom(fh: fh, scale: scale))
                 }
-                if showLogButton {
-                    Button(action: openLogToday) {
-                        logTodayButton(scale: scale)
-                    }
-                    .buttonStyle(.plain)
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, max(0, fb + lh / 2 - 28 * scale))
-                    .accessibilityLabel(Copy.logToday + ", " +
-                        Copy.logValue(Format.metric(snapshot.todayValue, metric: challenge.metric),
-                                      Format.metric(challenge.target, metric: challenge.metric)) +
-                        " \(MetricDefaults.unit(for: challenge.metric))")
-                } else if showTodayPill {
+                if showTodayPill {
                     todayPill()
                         .padding(.bottom, max(0, fb + lh / 2 - 12 * scale))
                         .padding(.trailing, 20)
@@ -108,7 +97,28 @@ public struct ChallengePageView: View {
             Text(dayText()).font(FillFont.mono(13))
                 .foregroundStyle(FillColor.text3)
                 .accessibilityLabel(dayText())
-        }.padding(.horizontal, 20)
+            Button(action: share) {
+                Image(systemName: "square.and.arrow.up")
+                    .font(FillFont.scaled(16, weight: .semibold))
+                    .foregroundStyle(FillColor.text3)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
+            }
+            .accessibilityLabel(Copy.share)
+        }
+        .padding(.horizontal, 20)
+        .sheet(item: $sharePayload) { p in
+            ActivityView(items: p.items)
+        }
+    }
+
+    private func share() {
+        var items: [Any] = [ChallengeShare.text(challenge: challenge, snapshot: snapshot),
+                            ChallengeShare.appURL]
+        if let image = ChallengeShare.makeImage(challenge: challenge, snapshot: snapshot) {
+            items.insert(image, at: 0)
+        }
+        sharePayload = SharePayload(items: items)
     }
     private func pillText() -> String {
         if snapshot.outOfReach { return Copy.outOfReach }
@@ -222,9 +232,8 @@ public struct ChallengePageView: View {
     // the fill top, so no extra clearance for it.
     private func heroBottom(fh: CGFloat, scale: CGFloat) -> CGFloat {
         if heroInsideFill { return max(0, fh - 140 * scale) }
-        // DESIGN §4: leave room for the today pill (+54) or the Log today
-        // button (+78) when the hero sits above the fill.
-        let clearance: CGFloat = showLogButton ? 78 : (showTodayPill ? 54 : 0)
+        // DESIGN §4: leave room for the today pill (+54, same in manual).
+        let clearance: CGFloat = showTodayPill ? 54 : 0
         return fh + (16 + clearance) * scale
     }
     private var heroInsideFill: Bool {
@@ -314,50 +323,35 @@ public struct ChallengePageView: View {
     }
 
     // MARK: today pill (SPEC §7.3 item 9)
-    // In manual mode the same pill opens Log today ("LOG YOUR PROGRESS").
+    // Manual mode uses the same white pill, tappable to log.
     private var showTodayPill: Bool {
         challenge.type != .once && !snapshot.done && !snapshot.outOfReach
             && !snapshot.streakBroken
     }
-    /// SPEC §7.9: in manual mode the Log today button takes the band's place.
-    private var showLogButton: Bool { showTodayPill && manualMode && !snapshot.todayWon }
     private func todayPill() -> some View {
         let text = todayPillText
-        return Text(text)
+        if manualMode && !snapshot.todayWon {
+            return AnyView(Button(action: openLogToday) {
+                Text(text)
+                    .font(FillFont.mono(10.5)).foregroundStyle(FillColor.color(for: challenge.colorToken))
+                    .padding(.horizontal, 12).padding(.vertical, 8)
+                    .background(.white, in: Capsule())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(text))
+        }
+        return AnyView(Text(text)
             .font(FillFont.mono(10.5)).foregroundStyle(FillColor.color(for: challenge.colorToken))
             .padding(.horizontal, 12).padding(.vertical, 8)
             .background(.white, in: Capsule())
-            .accessibilityLabel(text)
-    }
-    private func logTodayButton(scale: CGFloat) -> some View {
-        HStack(spacing: 8) {
-            Image(systemName: "pencil")
-                .font(FillFont.scaled(14, weight: .bold))
-            Text(Copy.logToday).font(FillFont.scaled(16, weight: .bold))
-            Text(Copy.logValue(Format.metric(snapshot.todayValue, metric: challenge.metric),
-                               Format.metric(challenge.target, metric: challenge.metric)))
-                .font(FillFont.mono(12))
-                .foregroundStyle(.white.opacity(0.8))
-        }
-        .foregroundStyle(.white)
-        .frame(maxWidth: .infinity)
-        .frame(height: 56 * scale)
-        .background(FillColor.ink, in: Capsule())
-        .overlay {
-            if !reduceMotion {
-                Capsule().stroke(FillColor.ink.opacity(0.35), lineWidth: 2)
-                    .scaleEffect(logRing ? 1.08 : 1)
-                    .opacity(logRing ? 0 : 0.8)
-                    .animation(.easeOut(duration: 1.8).repeatForever(autoreverses: false),
-                               value: logRing)
-            }
-        }
-        .onAppear { logRing = true }
+            .accessibilityLabel(text))
     }
     private var todayPillText: String {
         guard snapshot.todayWon else {
-            return Copy.todayToGo(Notifications.remainingText(challenge: challenge,
-                                                             todayValue: snapshot.todayValue))
+            let base = Copy.todayToGo(Notifications.remainingText(challenge: challenge,
+                                                                  todayValue: snapshot.todayValue))
+            if manualMode { return "\(base) · \(Copy.logManually)" }
+            return base
         }
         if snapshot.dayIndex < dayStates.count,
            case .won(let manual) = dayStates[snapshot.dayIndex], manual {
@@ -511,6 +505,11 @@ public struct ChallengePageView: View {
     private func manualIdx() -> Set<Int> { dayStates.enumerated().compactMap { if case .won(let m) = $1, m { return $0 } else { return nil } }.reduce(into: Set()) { $0.insert($1) } }
     private func missIdx() -> Set<Int> { dayStates.enumerated().compactMap { if case .missed = $1 { return $0 } else { return nil } }.reduce(into: Set()) { $0.insert($1) } }
     private func todayIdx() -> Int? { dayStates.firstIndex { if case .today = $0 { return true } else { return false } } }
+}
+
+struct SharePayload: Identifiable {
+    let id = UUID()
+    let items: [Any]
 }
 
 // TodayBand stripes (DESIGN §1.1): repeating 45° stripes of C at 55%/35%

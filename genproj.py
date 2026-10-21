@@ -13,7 +13,7 @@ TEAM_ID = "J94VN7TYYC"
 # Release versioning: bump BUILD_NUMBER for every TestFlight upload
 # (Apple rejects re-uploads of an existing build number).
 MARKETING_VERSION = "1.0"
-BUILD_NUMBER = "1"
+BUILD_NUMBER = "2"
 
 # Bundle identifier: must be globally unique on your development team.
 BUNDLE_ID = "com.wonday.rewards"
@@ -42,6 +42,7 @@ sources = [
     "Fill/Engagement/Engagement.swift",
     "Fill/Features/Overview/OverviewView.swift",
     "Fill/Features/ChallengePage/ChallengePageView.swift",
+    "Fill/Features/ChallengePage/ChallengeShare.swift",
     "Fill/Features/Pager/PagerView.swift",
     "Fill/Features/Pager/PageBuilder.swift",
     "Fill/Features/Create/CreateView.swift",
@@ -66,7 +67,7 @@ test_sources = [
     "FillTests/DomainTests.swift",
 ]
 uitest_sources = ["FillUITests/CreateFlowTests.swift", "FillUITests/GelFillTests.swift", "FillUITests/RescueTests.swift",
-                  "FillUITests/OnboardingTests.swift"]
+                  "FillUITests/OnboardingTests.swift", "FillUITests/HealthConnectTapTests.swift"]
 
 def uid(name: str) -> str:
     return hashlib.md5(name.encode()).hexdigest()[:24].upper()

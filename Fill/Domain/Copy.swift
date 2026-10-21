@@ -201,6 +201,8 @@ public enum Copy {
 
     // MARK: - Log today (SPEC §7.9)
     public static let logToday = "Log today"
+    // [proposal] Manual pill suffix — same white Today pill, tappable.
+    public static let logManually = "LOG MANUALLY"
     public static let honest = "Be honest — this is your own challenge."
     public static let connectInstead = "Connect Apple Health instead"
     public static let save = "Save"
@@ -332,12 +334,24 @@ public enum Copy {
 
     // Screen 2 — Apple Health
     public static let onbHealthTitle = "Connect Apple Health"
+    public static let onbHealthAllow = "Connect Apple Health"
     public static let onbHealthSub = "wonday reads your activity to check your goal.\nIt never writes, uploads or shares your data."
+    public static let onbHealthWhy1Title = "Checks your goal for you"
+    public static let onbHealthWhy1Sub = "Wins are counted automatically. No need to log by hand."
+    public static let onbHealthWhy2Title = "Read-only"
+    public static let onbHealthWhy2Sub = "Never writes to Apple Health."
+    public static let onbHealthWhy3Title = "Stays on this iPhone"
+    public static let onbHealthWhy3Sub = "No sign-up, no account, no server."
     public static let onbYourGoal = "YOUR GOAL"
     public static let onbHealthNote = "Read only. Stays on this iPhone."
     public static let onbActiveCalories = "Active calories"
     public static let onbConnected = "Connected ✓"
     public static let onbManualToast = "OK. Tap “Log today” to add your activity."
+    // [proposal] How-to-enable after a denial — no SPEC source, needs review.
+    public static let onbHealthHowTitle = "Turn on Health access"
+    public static let onbHealthHowBody = "Health was turned off, so iOS won't ask again.\n\n1. Open the Health app.\n2. Tap your picture, then Apps.\n3. Tap wonday.\n4. Turn on each category."
+    public static let onbHealthOpenSettings = "Open Health app"
+    public static let onbHealthClose = "Close"
 
     // Screen 3 — Notifications
     public static let onbNotifTitle1 = "A nudge,"
@@ -393,4 +407,11 @@ public enum Copy {
     public static let overviewAllChallenges = "All challenges"
     public static let decrease = "Decrease"
     public static let increase = "Increase"
+
+    // MARK: - Share (proposal — no SPEC/COPY source; flagged for product review)
+    public static let share = "Share"
+    public static let shareAppLink = "https://wonday.kranehx.com/"
+    public static func shareText(name: String, progress: String, reward: String) -> String {
+        "\(name): \(progress) to win \(reward)."
+    }
 }

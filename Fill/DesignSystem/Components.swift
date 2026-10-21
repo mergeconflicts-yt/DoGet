@@ -175,12 +175,15 @@ public struct FillStepper: View {
                 .foregroundStyle(FillColor.color(for: colorToken))
                 .multilineTextAlignment(.center)
                 .monospacedDigit()
-                .onSubmit { commitTyped() }
-                .toolbar {
-                    ToolbarItemGroup(placement: .keyboard) {
-                        Spacer()
-                        Button("Done") { commitTyped() }
+                .onSubmit { endTyping() }
+                .onChange(of: typed) { _, new in
+                    let normalized = new.replacingOccurrences(of: ",", with: ".")
+                    if let v = Double(normalized) {
+                        onSet?(v)
                     }
+                }
+                .onChange(of: focused) { _, isFocused in
+                    if !isFocused { typing = false }
                 }
                 .accessibilityLabel("Type a value")
         } else {
@@ -204,12 +207,6 @@ public struct FillStepper: View {
             .accessibilityLabel("\(value) \(unit)")
             .accessibilityHint("Double tap to type a value")
         }
-    }
-    private func commitTyped() {
-        if let v = Double(typed.replacingOccurrences(of: ",", with: ".")), onSet != nil {
-            onSet?(v)
-        }
-        endTyping()
     }
     private func endTyping() {
         typing = false

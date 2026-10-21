@@ -1,8 +1,11 @@
 import SwiftUI
 import SwiftData
+import UIKit
 
-// Screen 2 — Apple Health. White screen, read-only list, silent denial
-// (never show an error). Connect asks iOS once; manual mode is one tap.
+// Screen 2 — Apple Health. White screen, no permission list.
+// Explains why Health is needed + privacy (read-only, stays on device,
+// no server). Connect asks iOS once; manual mode is one tap.
+// Silent denial (never show an error).
 
 struct HealthConnectPage: View {
     var onBack: () -> Void
@@ -14,22 +17,21 @@ struct HealthConnectPage: View {
     @State private var connected = false
     @State private var connecting = false
     @State private var beat = false
+    @State private var showHowTo = false
 
-    private struct Row {
+    private struct Why {
         var title: String
+        var sub: String
         var icon: String
-        var token: String
-        var badge: String? = nil
     }
 
-    private let rows: [Row] = [
-        .init(title: Copy.healthSteps, icon: "shoeprints.fill", token: "orange",
-              badge: Copy.onbYourGoal),
-        .init(title: Copy.healthRings, icon: "circle.circle", token: "pink"),
-        .init(title: Copy.healthExercise, icon: "bolt.fill", token: "green"),
-        .init(title: Copy.healthWorkouts, icon: "figure.run", token: "blue"),
-        .init(title: Copy.onbActiveCalories, icon: "flame.fill", token: "teal"),
-        .init(title: Copy.healthSleep, icon: "moon.fill", token: "violet"),
+    private let whys: [Why] = [
+        .init(title: Copy.onbHealthWhy1Title, sub: Copy.onbHealthWhy1Sub,
+              icon: "checkmark.circle.fill"),
+        .init(title: Copy.onbHealthWhy2Title, sub: Copy.onbHealthWhy2Sub,
+              icon: "eye.slash.fill"),
+        .init(title: Copy.onbHealthWhy3Title, sub: Copy.onbHealthWhy3Sub,
+              icon: "iphone"),
     ]
 
     var body: some View {
@@ -53,11 +55,11 @@ struct HealthConnectPage: View {
                     }
 
                     VStack(spacing: 0) {
-                        ForEach(Array(rows.enumerated()), id: \.offset) { i, row in
-                            rowView(row)
-                            if i < rows.count - 1 {
+                        ForEach(Array(whys.enumerated()), id: \.offset) { i, w in
+                            whyView(w)
+                            if i < whys.count - 1 {
                                 Divider().overlay(FillColor.hairline)
-                                    .padding(.leading, 56)
+                                    .padding(.leading, 52)
                             }
                         }
                     }
@@ -83,7 +85,7 @@ struct HealthConnectPage: View {
                         if connecting {
                             ProgressView().tint(.white)
                         }
-                        Text(connected ? Copy.onbConnected : Copy.onbHealthTitle)
+                        Text(connected ? Copy.onbConnected : Copy.onbHealthAllow)
                     }
                     .font(FillFont.scaled(17, weight: .bold))
                     .foregroundStyle(.white)
@@ -91,7 +93,7 @@ struct HealthConnectPage: View {
                     .background(connected ? FillColor.success : FillColor.ink, in: Capsule())
                 }
                 .disabled(connecting || connected)
-                .accessibilityLabel(connected ? Copy.onbConnected : Copy.onbHealthTitle)
+                .accessibilityLabel(connected ? Copy.onbConnected : Copy.onbHealthAllow)
 
                 Button(Copy.logByHand, action: manual)
                     .font(FillFont.scaled(15, weight: .semibold))
@@ -103,6 +105,7 @@ struct HealthConnectPage: View {
             .padding(.bottom, 6)
         }
         .background(.white)
+        .sheet(isPresented: $showHowTo) { howToSheet }
     }
 
     private var healthSub: some View {
@@ -160,51 +163,87 @@ struct HealthConnectPage: View {
             .accessibilityLabel("Apple Health")
     }
 
-    private func rowView(_ row: Row) -> some View {
+    private func whyView(_ w: Why) -> some View {
         HStack(spacing: 12) {
-            RoundedRectangle(cornerRadius: 9, style: .continuous)
-                .fill(FillColor.color(for: row.token))
-                .frame(width: 32, height: 32)
-                .overlay {
-                    Image(systemName: row.icon)
-                        .font(.system(size: 15, weight: .bold))
-                        .foregroundStyle(.white)
-                }
-            Text(row.title)
-                .font(FillFont.scaled(16, weight: .semibold))
-                .foregroundStyle(FillColor.ink)
-            if let badge = row.badge {
-                Text(badge)
-                    .font(FillFont.mono(8)).tracking(0.8)
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 7).padding(.vertical, 3)
-                    .background(FillColor.orange, in: Capsule())
+            Image(systemName: w.icon)
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(FillColor.success)
+                .frame(width: 28, height: 32)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(w.title)
+                    .font(FillFont.scaled(16, weight: .semibold))
+                    .foregroundStyle(FillColor.ink)
+                Text(w.sub)
+                    .font(FillFont.scaled(13))
+                    .foregroundStyle(FillColor.text2)
             }
             Spacer(minLength: 8)
-            Toggle("", isOn: .constant(true))
-                .labelsHidden()
-                .tint(FillColor.success)
-                .allowsHitTesting(false)
-                .accessibilityHidden(true)
         }
-        .padding(.vertical, 9)
+        .padding(.vertical, 11)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(w.title). \(w.sub)")
     }
 
     private func connect() {
         guard !connecting, !connected else { return }
+        // Allowed or Don't Allow — that's it for this install. iOS shows the
+        // system sheet only once, so a denied re-tap shows how to turn it on.
+        if HealthKitController.shared.hasBeenAsked,
+           !HealthKitController.shared.isAuthorized {
+            showHowTo = true
+            return
+        }
         connecting = true
         Task { @MainActor in
-            // H01/H02: the system prompt. iOS never tells us a refusal, so
-            // there is no error state — the app simply works with what it has.
-            _ = await HealthKitController.shared.authorize()
+            // H01/H02: silent denial — never show Connected unless granted.
+            let granted = await HealthKitController.shared.authorize()
+            connecting = false
+            guard granted else { return }
             let repo = Repository(context: context)
             repo.settings().manualMode = false
             try? context.save()
-            connecting = false
             connected = true
             try? await Task.sleep(for: .seconds(0.9))
             onNext()
         }
+    }
+
+    private var howToSheet: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Capsule().fill(FillColor.hairline).frame(width: 40, height: 5)
+                .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.top, 10)
+                .accessibilityHidden(true)
+            Text(Copy.onbHealthHowTitle)
+                .font(FillFont.scaled(22, weight: .heavy))
+                .foregroundStyle(FillColor.ink)
+            Text(Copy.onbHealthHowBody)
+                .font(FillFont.scaled(15))
+                .foregroundStyle(FillColor.text2)
+                .accessibilityLabel("\(Copy.onbHealthHowTitle). \(Copy.onbHealthHowBody)")
+            Button(Copy.onbHealthOpenSettings) {
+                if let healthURL = URL(string: "x-apple-health://"),
+                   UIApplication.shared.canOpenURL(healthURL) {
+                    UIApplication.shared.open(healthURL)
+                } else if let url = URL(string: UIApplication.openSettingsURLString) {
+                    UIApplication.shared.open(url)
+                }
+            }
+            .font(FillFont.scaled(17, weight: .bold))
+            .foregroundStyle(.white)
+            .frame(maxWidth: .infinity).frame(height: 54)
+            .background(FillColor.ink, in: Capsule())
+            .accessibilityLabel(Copy.onbHealthOpenSettings)
+            Button(Copy.onbHealthClose) { showHowTo = false }
+                .font(FillFont.scaled(15, weight: .semibold))
+                .foregroundStyle(FillColor.ink)
+                .frame(maxWidth: .infinity).frame(height: 44)
+                .accessibilityLabel(Copy.onbHealthClose)
+        }
+        .padding(.horizontal, 24)
+        .padding(.bottom, 20)
+        .presentationDetents([.medium])
     }
 
     private func manual() {

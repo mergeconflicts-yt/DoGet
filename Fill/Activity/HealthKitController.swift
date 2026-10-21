@@ -39,12 +39,16 @@ public final class HealthKitController {
         return t
     }
 
-    /// Shows the system prompt (once per install). Returns authorization state;
-    /// denial is indistinguishable from no data — never an error UI (H02).
+    /// Shows the system prompt (once per install). Returns true only if at
+    /// least one read type is actually authorized; denial is silent (H02)
+    /// so callers must not show an error, just stay unconnected.
+    /// Note: iOS shows the sheet only once — later calls return immediately,
+    /// so callers must send an already-determined-but-denied user to Settings.
     public func authorize() async -> Bool {
         guard Self.isAvailable else { return false }
         do {
             try await store.requestAuthorization(toShare: [], read: Self.readTypes())
+            guard isAuthorized else { return false }
             // Observer queries created before authorization die with
             // "Authorization not determined" — re-register now that we can read.
             observersRegistered = false
@@ -53,6 +57,25 @@ public final class HealthKitController {
         } catch {
             return false
         }
+    }
+
+    /// True once iOS has asked at all (granted or denied). After this,
+    /// requestAuthorization no longer shows UI.
+    public var hasBeenAsked: Bool {
+        for t in Self.readTypes() {
+            if store.authorizationStatus(for: t) != .notDetermined { return true }
+        }
+        return false
+    }
+
+    /// True when the user granted at least one read type. iOS never
+    /// pre-selects anything: the system sheet always starts with everything
+    /// off and the user must toggle each type on by hand.
+    public var isAuthorized: Bool {
+        for t in Self.readTypes() {
+            if store.authorizationStatus(for: t) == .sharingAuthorized { return true }
+        }
+        return false
     }
 
     /// IMPLEMENTATION §5.4 — register before the first frame; hourly for steps

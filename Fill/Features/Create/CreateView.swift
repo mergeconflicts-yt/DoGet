@@ -242,6 +242,7 @@ public struct CreateView: View {
                 .padding(.horizontal, 20).padding(.top, 8)
             }
             .frame(maxHeight: 480)
+            .scrollDismissesKeyboard(.interactively)
             Button(Copy.done) { model.done(i) }
                 .font(FillFont.scaled(17, weight: .bold)).foregroundStyle(.white)
                 .frame(maxWidth: .infinity).frame(height: 56)
