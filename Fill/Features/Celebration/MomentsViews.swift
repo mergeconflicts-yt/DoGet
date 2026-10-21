@@ -38,6 +38,10 @@ public struct LogTodayView: View {
             Button(Copy.connectInstead) { connectHealth() }
                 .font(FillFont.scaled(15, weight: .semibold))
                 .accessibilityLabel(Copy.connectInstead)
+            Text(Copy.logConnectNote)
+                .font(FillFont.scaled(12))
+                .foregroundStyle(FillColor.text2)
+                .accessibilityLabel(Copy.logConnectNote)
             Button(Copy.save) { save() }
                 .font(FillFont.scaled(17, weight: .bold)).foregroundStyle(.white)
                 .frame(maxWidth: .infinity).frame(height: 56)

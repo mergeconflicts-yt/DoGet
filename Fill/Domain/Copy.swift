@@ -205,6 +205,8 @@ public enum Copy {
     public static let logManually = "LOG MANUALLY"
     public static let honest = "Be honest — this is your own challenge."
     public static let connectInstead = "Connect Apple Health instead"
+    // [proposal] Small help under Connect in the Log popup only.
+    public static let logConnectNote = "If Health was turned off, open the Health app → your picture → Apps → wonday and turn on each category."
     public static let save = "Save"
     public static let saved = "Saved."
     public static let half = "50%"
